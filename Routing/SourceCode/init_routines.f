@@ -22,6 +22,10 @@ c     DATA RCSID/"$Id: init_routines.f,v 1.1 2005/04/07 05:07:28 vicadmin Exp $"
       RETURN
       END
 
+C************************************************************************************************************************************************************************************
+C     CREATE VIC NAMES
+C************************************************************************************************************************************************************************************
+
       SUBROUTINE CREATE_VIC_NAMES( JLOC, ILOC, EXTEN, CLEN, DPREC )
 c     create string containing vic file names to be
 c     appended to path given in input file
@@ -86,14 +90,14 @@ C*******************************************************************************
       INTEGER DIREC(NCOL,NROW,2)
       INTEGER NO_OF_BOX(200)
       INTEGER CATCHIJ(PMAX,2,200)
-	  INTEGER NORESERVOIRS
-	  INTEGER RES_DIRECT(200,3)
-	  INTEGER RESER(NCOL,NROW)
-	  INTEGER CELL_OF_RES	  
+      INTEGER NORESERVOIRS
+      INTEGER RES_DIRECT(200,3)
+      INTEGER RESER(NCOL,NROW)
+      INTEGER CELL_OF_RES
       NORESERVOIRS = NORESERVOIRS + 1
-	  RES_DIRECT(NORESERVOIRS,1) = NORESERVOIRS
-	  NO_OF_BOX(NORESERVOIRS) = 0
-	  CELL_OF_RES = 0
+      RES_DIRECT(NORESERVOIRS,1) = NORESERVOIRS
+      NO_OF_BOX(NORESERVOIRS) = 0
+      CELL_OF_RES = 0
       DO I = 1, ICOL
         DO J = 1, IROW
             II = I
@@ -119,21 +123,21 @@ C*******************************************************************************
                END IF
             END IF
  310        CONTINUE
-			IF ((RESER(I,J)>0) .AND. (II .EQ. PI) .AND. (JJ .EQ. PJ) 
-     &		.AND. (RESER(I,J) .NE. 9999)) THEN
-				RES_DIRECT(NORESERVOIRS,1) = RESER(I,J)
-				NORESERVOIRS = NORESERVOIRS + 1				
-				CELL_OF_RES = 0 
-				RES_DIRECT(NORESERVOIRS,1) = NORESERVOIRS
-				NO_OF_BOX(NORESERVOIRS) = NO_OF_BOX(NORESERVOIRS-1)
-				NO_OF_BOX(NORESERVOIRS-1) = 0
-				DO K = 1, NO_OF_BOX(NORESERVOIRS)
-					CATCHIJ(K,1,NORESERVOIRS) = CATCHIJ(K,1,NORESERVOIRS-1)
-					CATCHIJ(K,2,NORESERVOIRS) = CATCHIJ(K,2,NORESERVOIRS-1)
-					CATCHIJ(K,1,NORESERVOIRS-1) = 0
-					CATCHIJ(K,2,NORESERVOIRS-1) = 0
-				END DO
-			END IF
+            IF ((RESER(I,J)>0) .AND. (II .EQ. PI) .AND. (JJ .EQ. PJ) 
+     &        .AND. (RESER(I,J) .NE. 9999)) THEN
+                RES_DIRECT(NORESERVOIRS,1) = RESER(I,J)
+                NORESERVOIRS = NORESERVOIRS + 1
+                CELL_OF_RES = 0 
+                RES_DIRECT(NORESERVOIRS,1) = NORESERVOIRS
+                NO_OF_BOX(NORESERVOIRS) = NO_OF_BOX(NORESERVOIRS-1)
+                NO_OF_BOX(NORESERVOIRS-1) = 0
+                DO K = 1, NO_OF_BOX(NORESERVOIRS)
+                    CATCHIJ(K,1,NORESERVOIRS) = CATCHIJ(K,1,NORESERVOIRS-1)
+                    CATCHIJ(K,2,NORESERVOIRS) = CATCHIJ(K,2,NORESERVOIRS-1)
+                    CATCHIJ(K,1,NORESERVOIRS-1) = 0
+                    CATCHIJ(K,2,NORESERVOIRS-1) = 0
+                END DO
+            END IF
          END DO
       END DO
       WRITE(*,*) 'Number of grid cells',

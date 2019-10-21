@@ -8,115 +8,117 @@ C*******************************************************************************
      &  VOL, FLOWIN, FLOWOUT, HHO, HYDROPOWER,HTK, RESER, NCOL,NROW,
      &  ICOL, IROW, RPATH, NO_STAS,RES_DIRECT,RES_EVAPORATION,NO_OF_BOX)
       IMPLICIT NONE
+c     Declare variables
 c     RCS ID STRING
-      INTEGER IROW, ICOL
-      CHARACTER*72 RPATH
-	  INTEGER	NO_OF_BOX(200)
-      INTEGER DAYS
-      INTEGER NROW, NCOL
-      REAL    FLOW(DAYS)
-      INTEGER IDAY(DAYS), IMONTH(DAYS), IYEAR(DAYS)
-      INTEGER I, J, K, CLEN
-      INTEGER 	RES_DIRECT(200,3)
-      CHARACTER*5 NAME5
-      REAL    FACTOR_SUM
-      CHARACTER*72 OUTPATH, TENHO
-      INTEGER RESER(NCOL,NROW)
-      INTEGER H(NCOL,NROW)
-	  INTEGER RULE
-      REAL    VOL(200,DAYS),FLOWIN(200,DAYS), FLOWOUT(200,DAYS)
-      REAL    HHO(200,DAYS),HYDROPOWER(200,DAYS),HTK(200,DAYS)
-	  REAL		  SEEPAGE, INFILTRATION
-	  REAL 	RES_EVAPORATION(200,DAYS)
-      CHARACTER*20 CHUOI
-      REAL    HRESERMAX, HRESERMIN
-      REAL    QRESER, VRESER, HPHATDIEN, QSPILL, QTUR
-	  REAL		X1,X2,X3,X4
+      INTEGER       IROW, ICOL
+      INTEGER       NO_OF_BOX(200)
+      INTEGER       DAYS
+      INTEGER       NROW, NCOL
+      INTEGER       IDAY(DAYS), IMONTH(DAYS), IYEAR(DAYS)
+      INTEGER       I, J, K, CLEN
+      INTEGER       RES_DIRECT(200,3)
+      INTEGER       RESER(NCOL,NROW)
+      INTEGER       H(NCOL,NROW)
+      INTEGER       RULE
+      INTEGER       NO_STAS, NAM
+      REAL          VOL(200,DAYS),FLOWIN(200,DAYS), FLOWOUT(200,DAYS)
+      REAL          HHO(200,DAYS),HYDROPOWER(200,DAYS),HTK(200,DAYS)
+      REAL          SEEPAGE, INFILTRATION
+      REAL          RES_EVAPORATION(200,DAYS)
+      REAL          HRESERMAX, HRESERMIN
+      REAL          QRESER, VRESER, HPHATDIEN, QSPILL, QTUR
+      REAL          X1,X2,X3,X4
+      REAL          FLOW(DAYS)
+      REAL          FACTOR_SUM
       CHARACTER*200 TEMPRPATH
-      INTEGER NO_STAS, NAM
+      CHARACTER*72  RPATH
+      CHARACTER*20  CHUOI
+      CHARACTER*5   NAME5
+      CHARACTER*72  OUTPATH, TENHO
+c     Subroutine main body
       CLEN = INDEX(OUTPATH,' ')-1
       OPEN(30, FILE = OUTPATH(1:CLEN)//NAME5//'.day')
       OPEN(31, FILE = OUTPATH(1:CLEN)//NAME5//'.day_mm')
       DO I = 1,DAYS
-         WRITE(30,*) IYEAR(I),IMONTH(I),IDAY(I),FLOW(I)
-         WRITE(31,*) IYEAR(I),IMONTH(I),IDAY(I),FLOW(I) / FACTOR_SUM
+            WRITE(30,*) IYEAR(I),IMONTH(I),IDAY(I),FLOW(I)
+            WRITE(31,*) IYEAR(I),IMONTH(I),IDAY(I),FLOW(I) / FACTOR_SUM
       END DO
       CLOSE(30)
       CLOSE(31)
       DO I=1, NO_STAS-1
-        WRITE(CHUOI,*) RES_DIRECT(I,1)
-        TEMPRPATH = trim(RPATH)//"res"//trim(ADJUSTL(CHUOI))//".txt"
-        OPEN(25, FILE = TEMPRPATH,FORM = 'FORMATTED',
-     & STATUS='OLD')
-        READ(25,*)
-        READ(25,*) HRESERMAX, HRESERMIN, VRESER, HPHATDIEN,
-     & QRESER, NAM, TENHO
-	    READ(25,*)	 
-	    READ(25,*) SEEPAGE, INFILTRATION
-	    READ(25,*)	 
-        READ(25,*) RULE
-		IF ((RULE .EQ. 1) .OR. (RULE .EQ. 2)) THEN
-		   READ(25,*) X1,X2,X3,X4
-		END IF		
-        CLOSE(25)
-		IF (RULE .EQ. 2) THEN
-			QRESER = X2
-		END IF
-        WRITE(CHUOI,*) RES_DIRECT(I,1)
-        OPEN(40, FILE = OUTPATH(1:CLEN)//'reservoir_'
-     &  //trim(ADJUSTL(CHUOI))//'.day')
-	    IF ((RULE .EQ. 1) .OR. (RULE .EQ. 2)) THEN
-            WRITE(40,*) 'Volume_1000cm WaterLevel_m Qinflow_cms '
-     &       //'Qspilways_cms Qculvert_cms Energy_MW'
-            DO K = 1, DAYS			
-                IF (FLOWOUT(I,K)>QRESER) THEN
-                    QSPILL = FLOWOUT(I,K) - QRESER
-                    QTUR = QRESER
-                ELSE
-                    QSPILL = 0
-                    QTUR = FLOWOUT(I,K)
-                END IF
-                IF (VOL(I,K)<0) THEN
-			        VOL(I,K) = 0
-		        END IF
-		        if (HHO(I,K)<0) then
-			        HHO(I,K) = 0
-		        end if
-		        if (FLOWIN(I,K)<0) then
-			        FLOWIN(I,K) = 0
-		        end if
-		        if (HYDROPOWER(I,K)<0) then
-			        HYDROPOWER(I,K) = 0
-		        end if		  
-		        WRITE(40,*) VOL(I,K), HHO(I,K), FLOWIN(I,K),
-     &          QSPILL, QTUR, HYDROPOWER(I,K)
-            END DO
-		ELSE
-	        WRITE(40,*) 'Volume_1000cm WaterLevel_m Qinflow_cms '
-     &       //'Qoutflow_cms Energy_MW'
-            DO K = 1, DAYS			
-                QTUR = FLOWOUT(I,K)
-                IF (VOL(I,K)<0) THEN
-			        VOL(I,K) = 0
-		        END IF
-		        if (HHO(I,K)<0) then
-			        HHO(I,K) = 0
-		        end if
-		        if (FLOWIN(I,K)<0) then
-			        FLOWIN(I,K) = 0
-		        end if
-		        if (HYDROPOWER(I,K)<0) then
-			        HYDROPOWER(I,K) = 0
-		        end if		  
-		        WRITE(40,*) VOL(I,K), HHO(I,K), FLOWIN(I,K),
-     &          QTUR, HYDROPOWER(I,K)
-			END DO
-		END IF
-        CLOSE(40)
+            WRITE(CHUOI,*) RES_DIRECT(I,1)
+            TEMPRPATH = trim(RPATH)//"res"//trim(ADJUSTL(CHUOI))//".txt"
+            OPEN(25, FILE = TEMPRPATH,FORM = 'FORMATTED',
+     &      STATUS='OLD')
+            READ(25,*)
+            READ(25,*) HRESERMAX, HRESERMIN, VRESER, HPHATDIEN,
+     &      QRESER, NAM, TENHO
+            READ(25,*)
+            READ(25,*) SEEPAGE, INFILTRATION
+            READ(25,*)
+            READ(25,*) RULE
+            IF (RULE .EQ. 1) THEN
+                READ(25,*) X1,X2,X3,X4
+            ELSE IF (RULE .EQ. 2) THEN
+                READ(25,*) X1,X2,X3
+            END IF
+            CLOSE(25)
+            IF (RULE .EQ. 2) THEN
+                QRESER = X2
+            END IF
+            WRITE(CHUOI,*) RES_DIRECT(I,1)
+            OPEN(40, FILE = OUTPATH(1:CLEN)//'reservoir_'
+     &       //trim(ADJUSTL(CHUOI))//'.day')
+            IF ((RULE .EQ. 1) .OR. (RULE .EQ. 2)) THEN
+                WRITE(40,*) 'Volume_1000cm WaterLevel_m Qinflow_cms '
+     &          //'Qspilways_cms Qculvert_cms Energy_MW'
+                DO K = 1, DAYS
+                    IF (FLOWOUT(I,K)>QRESER) THEN
+                        QSPILL = FLOWOUT(I,K) - QRESER
+                        QTUR = QRESER
+                    ELSE
+                        QSPILL = 0
+                        QTUR = FLOWOUT(I,K)
+                    END IF
+                    IF (VOL(I,K)<0) THEN
+                        VOL(I,K) = 0
+                    END IF
+                    if (HHO(I,K)<0) then
+                        HHO(I,K) = 0
+                    end if
+                    if (FLOWIN(I,K)<0) then
+                        FLOWIN(I,K) = 0
+                    end if
+                    if (HYDROPOWER(I,K)<0) then
+                        HYDROPOWER(I,K) = 0
+                    end if
+                    WRITE(40,*) VOL(I,K), HHO(I,K), FLOWIN(I,K), QSPILL, QTUR, HYDROPOWER(I,K)
+                END DO
+            ELSE
+                WRITE(40,*) 'Volume_1000cm WaterLevel_m Qinflow_cms '
+     &           //'Qoutflow_cms Energy_MW'
+                DO K = 1, DAYS
+                    IF (VOL(I,K)<0) THEN
+                        VOL(I,K) = 0
+                    END IF
+                    if (HHO(I,K)<0) then
+                        HHO(I,K) = 0
+                    end if
+                    if (FLOWIN(I,K)<0) then
+                        FLOWIN(I,K) = 0
+                    end if
+                    if (HYDROPOWER(I,K)<0) then
+                        HYDROPOWER(I,K) = 0
+                    end if
+                    WRITE(40,*) VOL(I,K), HHO(I,K), FLOWIN(I,K),
+     &               FLOWOUT(I,K), HYDROPOWER(I,K)
+                END DO
+            END IF
+            CLOSE(40)
       END DO
       RETURN
       END
-	  
+
 C************************************************************************************************************************************************************************************
 C     WRITE MONTHLY/YEAR DATA AT THE BASIN OUTLET
 C************************************************************************************************************************************************************************************
@@ -134,7 +136,10 @@ C*******************************************************************************
       INTEGER IMONTH(DAYS),IYEAR(DAYS)
       INTEGER SKIPTO, STOPAT
       INTEGER OLDMO
-c      INTEGER MNTH_INDX
+      INTEGER I, MONTH, YEAR, DAY_IN_MONTH
+      INTEGER M, MCOUNT(12)     !AWW-092700
+      INTEGER MO(12*NYR),YR(12*NYR)
+c     INTEGER MNTH_INDX
       REAL    FLOW(DAYS)
       REAL    FACTOR_SUM
       REAL    MONTHLY(12*(STOP_YEAR-START_YEAR+1))
@@ -143,9 +148,6 @@ c      INTEGER MNTH_INDX
       REAL    YEARLY_mm(12)
       CHARACTER*5  NAME5
       CHARACTER*72 OUTPATH, TMPPTH
-      INTEGER I, MONTH, YEAR, DAY_IN_MONTH
-      INTEGER M, MCOUNT(12)     !AWW-092700
-      INTEGER MO(12*NYR),YR(12*NYR)
 c     concatenate output string
       I=INDEX(OUTPATH,' ')-1
 C      OUTPATH(I:I+4)=NAME5
