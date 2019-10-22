@@ -2,7 +2,7 @@
 
 # VIC-Res: Representation and operation of reservoirs in the Variable Infiltration Capacity (VIC) model
 
-Variable Infiltration Capacity (VIC) is a poplular macro-scale hydrological model developed and maintained by the University of Washington, US. VIC has been used extensively to model river basins around the world. However, the operation of artificial reservoirs cannot be modelled in the original version of VIC. Since the environmental impact of reservoirs comes under ever-increasing scrutiny as the global demand for water and energy increases, we develop a variant of VIC which allows modelling explicitly reservoirs. More details about how we incorporate reservoirs into the model are presented in [Dang et al. (2019)](https://www.hydrol-earth-syst-sci-discuss.net/hess-2019-334/).
+Variable Infiltration Capacity (VIC) is a popular macro-scale hydrological model developed and maintained by the University of Washington, US. VIC has been used extensively to model river basins around the world. However, the operation of artificial reservoirs cannot be modelled in the original version of VIC. Since the environmental impact of reservoirs comes under ever-increasing scrutiny as the global demand for water and energy increases, we develop a variant of VIC which allows modelling explicitly reservoirs. More details about how we incorporate reservoirs into the model are presented in [Dang et al. (2019)](https://www.hydrol-earth-syst-sci-discuss.net/hess-2019-334/).
 
 ### Prerequisites
 
