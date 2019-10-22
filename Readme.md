@@ -64,8 +64,4 @@ Questions and feedback related to VIC-Res (not VIC) and requests to fix possible
 ### Possible future works
 
 * Groundwater modelling
-<<<<<<< HEAD
 * New Graphic User Interface (GUI) in Java 
-=======
-* New Graphic User Interface (GUI) in Java 
->>>>>>> adding files
