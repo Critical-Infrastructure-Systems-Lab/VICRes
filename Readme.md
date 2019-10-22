@@ -2,11 +2,11 @@
 
 # VIC-Res: Representation and operation of reservoirs in the Variable Infiltration Capacity (VIC) model
 
-Variable Infiltration Capacity (VIC) is a poplular macro-scale hydrological model developed and maintained by the University of Washington, US. VIC has been used extensively to model river basins around the world. However, the original version of VIC cannot model the operation of artificial reservoirs. Since the environmental impact of reservoirs comes under ever-increasing scrutiny as the global demand for water and energy increases, we develop a variant of VIC which allows modelling explicitly reservoirs. More details about how we incorporate reservoirs into the model are presented in [Dang et al. (2019)](https://www.hydrol-earth-syst-sci-discuss.net/hess-2019-334/).
+Variable Infiltration Capacity (VIC) is a poplular macro-scale hydrological model developed and maintained by the University of Washington, US. VIC has been used extensively to model river basins around the world. However, the operation of artificial reservoirs cannot be modelled in the original version of VIC. Since the environmental impact of reservoirs comes under ever-increasing scrutiny as the global demand for water and energy increases, we develop a variant of VIC which allows modelling explicitly reservoirs. More details about how we incorporate reservoirs into the model are presented in [Dang et al. (2019)](https://www.hydrol-earth-syst-sci-discuss.net/hess-2019-334/).
 
 ### Prerequisites
 
-We choose VIC 4.2 which is a prominent version in terms of the number of active users and modelling speed to develop VIC-Res. In this version, the rainfall-runoff component is written in C, and the routing component is developed in FORTRAN. Both VIC and VIC-Res have been developed for uses on Linux and Unix platforms, and they require the GNU and G77 compilers. VIC-Res has been tested on Linux Ubuntu 16.04 (Xenial Xerus) operating systems.
+We choose VIC 4.2 which is a prominent version in terms of modelling speed and the number of active users to develop VIC-Res. In this version, the rainfall-runoff component is written in C, and the routing component is developed in FORTRAN. Both VIC and VIC-Res have been developed for uses on Linux and Unix platforms, and they require the GNU and G77 compilers. VIC-Res has been tested on Linux Ubuntu 16.04 (Xenial Xerus) operating systems.
 
 ### How to run
 
@@ -37,16 +37,13 @@ The location of reservoirs is stored in *reservoirlocation.txt* which has the sa
 * '0' is other types of land use
 
 Reservoir operation:
-Corresponding to each reservoir ID (e.g. 1), there is a reservoir configuration file (e.g. res1.txt), containing parameters such as maximum water level (*m*), minimum water level (*m*), storage capacity (*1000 m3*), water head (*m*; optional for hydropower production estimation), design discharge (*m3/s*), commision year, initial water volume (*1000 m3*), name of reservoir, seepage rate (*m3/s*), infiltration rate (*m3/s*), and operation strategy (*1-3*). There are three operation strategies available in the current version:
-* '1' - Rule curve (see Figure 3 in [Dang et al. (2019)](https://www.hydrol-earth-syst-sci-discuss.net/hess-2019-334/) for more details)
-* '2' - Operating rule
-* '3' - Pre-defined time-series data
+Corresponding to each reservoir ID (e.g. 1), there is a reservoir configuration file (e.g. res1.txt), containing parameters such as maximum water level (*m*), minimum water level (*m*), storage capacity (*1000 m3*), water head (*m*; optional for hydropower production estimation), design discharge (*m3/s*), commision year, initial water volume (*1000 m3*), name of reservoir, seepage rate (*m3/s*), infiltration rate (*m3/s*), and characteristics of rule curves. 
 
 ### Citation
 
-If you use VIC-Res, please cite the following papers:
+If you use VIC-Res, please cite the following paper:
 
-*T.D.Dang, A.K.Chowdhury, and  S.Galelli. On  the  representation  of  waterreservoir storage and operations in large-scale hydrological models:  implicationson model parameterization and climate change impact assessments.Hydrology andEarth System Sciences Discussions, 2019:1–34, 2019.* ![DOI](https://img.shields.io/badge/DOI-doi.org%2F10.5194%2Fhess--2019--334-lightgrey) 
+*T.D. Dang, A.K. Chowdhury, and  S. Galelli. On  the  representation  of  water reservoir storage and operations in large-scale hydrological models:  implications on model parameterization and climate change impact assessments. Hydrology and Earth System Sciences Discussions, 2019:1â€“34, 2019.* ![DOI](https://img.shields.io/badge/DOI-doi.org%2F10.5194%2Fhess--2019--334-lightgrey) 
 
 ## Acknowledgments
 
