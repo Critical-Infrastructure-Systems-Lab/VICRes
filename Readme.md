@@ -43,7 +43,7 @@ For each reservoir ID (e.g. 1), there is a reservoir configuration file (e.g. re
 
 We use a simplified catchment with a dimesion of 5 x 5 (cell) to demonstrate the capacity of VIC-Res (see *Rainfall-runoffSetup* and *RoutingSetup* folders). 
 
-Reservoir representation: In the *reservoirlocation.txt*, the 2D matrix shows that there are two cascade reservoirs (Reservoir 1 and Reservoir 2, IDs 1 and 2). The number of reservoir cells are 1 and 2, respectively.
+Reservoir representation: the 2D matrix in *reservoirlocation.txt* shows that there are two cascade reservoirs (Reservoir 1 and Reservoir 2, IDs 1 and 2). The number of reservoir cells are 1 and 2, respectively.
 
 Reservoir operation: The parameter files of these two reservoirs are named *res1.txt* and *res2.txt*.
 
