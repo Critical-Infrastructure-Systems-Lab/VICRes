@@ -51,15 +51,7 @@ Reservoir operation: The parameter files of these two reservoirs are named *res1
 
 If you use VIC-Res, please cite the following paper:
 
-<<<<<<< HEAD
-*T.D. Dang, A.K. Chowdhury, and  S. Galelli. On  the  representation  of  water reservoir storage and operations in large-scale hydrological models:  implications on model parameterization and climate change impact assessments. Hydrology and Earth System Sciences Discussions, 2019:1–34, 2019.* ![DOI](https://img.shields.io/badge/DOI-doi.org%2F10.5194%2Fhess--2019--334-lightgrey) 
-=======
-<<<<<<< HEAD
 *T.D.Dang, A.K.Chowdhury, and  S.Galelli. On  the  representation  of  waterreservoir storage and operations in large-scale hydrological models:  implicationson model parameterization and climate change impact assessments.Hydrology andEarth System Sciences Discussions, 2019:1–34, 2019.* ![DOI](https://img.shields.io/badge/DOI-doi.org%2F10.5194%2Fhess--2019--334-lightgrey) 
-=======
-*T.D.Dang, A.K.Chowdhury, and  S.Galelli. On  the  representation  of  waterreservoir storage and operations in large-scale hydrological models:  implicationson model parameterization and climate change impact assessments.Hydrology andEarth System Sciences Discussions, 2019:1�34, 2019.* ![DOI](https://img.shields.io/badge/DOI-doi.org%2F10.5194%2Fhess--2019--334-lightgrey) 
->>>>>>> adding files
->>>>>>> Mannually merged upstream update
 
 ## Acknowledgments
 
