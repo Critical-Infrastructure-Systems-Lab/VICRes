@@ -3,5 +3,5 @@ Hmax(M)	Hmin(M)	Storage(1000M3)	Hturbine(M)	Qdesign (M3/s)	Year	Sinitial(1000M3)
 SEEPAGE	INFILTRATION
 0	0
 OPERATION STRATEGY
-2
-0.0057	55	0.0057
+1
+182	304	505	560
