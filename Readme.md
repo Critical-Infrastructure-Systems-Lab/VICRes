@@ -37,7 +37,7 @@ The location of reservoirs is stored in *reservoirlocation.txt* which has the sa
 * '0' is other types of land use
 
 Reservoir operation:
-Corresponding to each reservoir ID (e.g. 1), there is a reservoir configuration file (e.g. res1.txt), containing parameters such as maximum water level (*m*), minimum water level (*m*), storage capacity (*1000 m3*), water head (*m*; optional for hydropower production estimation), design discharge (*m3/s*), commision year, initial water volume (*1000 m3*), name of reservoir, seepage rate (*m3/s*), infiltration rate (*m3/s*), and characteristics of rule curves. 
+For each reservoir ID (e.g. 1), there is a reservoir configuration file (e.g. res1.txt), containing parameters such as maximum water level (*m*), minimum water level (*m*), storage capacity (*1000 m3*), water head (*m*; optional for hydropower production estimation), design discharge (*m3/s*), commision year, initial water volume (*1000 m3*), name of reservoir, seepage rate (*m3/s*), infiltration rate (*m3/s*), and characteristics of rule curves. 
 
 ### Citation
 
