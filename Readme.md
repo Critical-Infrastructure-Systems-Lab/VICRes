@@ -39,6 +39,14 @@ The location of reservoirs is stored in *reservoirlocation.txt* which has the sa
 Reservoir operation:
 For each reservoir ID (e.g. 1), there is a reservoir configuration file (e.g. res1.txt), containing parameters such as maximum water level (*m*), minimum water level (*m*), storage capacity (*1000 m3*), water head (*m*; optional for hydropower production estimation), design discharge (*m3/s*), commision year, initial water volume (*1000 m3*), name of reservoir, seepage rate (*m3/s*), infiltration rate (*m3/s*), and characteristics of rule curves. 
 
+### Example 
+
+We use a simplified catchment with a dimesion of 5 x 5 (cell) to demonstrate the capacity of VIC-Res (see *Rainfall-runoffSetup* and *RoutingSetup* folders). 
+
+Reservoir representation: In the *reservoirlocation.txt*, the 2D matrix shows that there are two cascade reservoirs (Reservoir 1 and Reservoir 2, IDs 1 and 2). The number of reservoir cells are 1 and 2, respectively.
+
+Reservoir operation: The parameter files of these two reservoirs are named *res1.txt* and *res2.txt*.
+
 ### Citation
 
 If you use VIC-Res, please cite the following paper:
