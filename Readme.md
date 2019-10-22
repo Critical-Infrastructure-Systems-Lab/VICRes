@@ -59,7 +59,7 @@ VIC-Res development is supported by Singapore's Ministry of Education (MoE) via 
 
 ### Contact
 
-Questions and feedback related to VIC-Res (not VIC) and requests to fix possible bugs, please send to thanhiwer@gmail.com (Thanh Dang).
+Questions and feedback related to VIC-Res (not VIC) and requests to fix possible bugs, please send to thanhiwer@gmail.com (Thanh Dang), Resilient Water Systems Group, Singapore University of Technology and Design, Singapore.
 
 ### Possible future works
 
