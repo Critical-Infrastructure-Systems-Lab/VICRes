@@ -972,9 +972,6 @@ c        Check the neccesity to spill water
          WRITE(*,*) '-------------------------------------------------'
          WRITE(*,*) 'Hdesign ',HTK(J,I)
          WRITE(*,*) 'CRTDATE',CRTDATE,'Reservoir No.',J,' FLOWIN ',FLOWIN(J,I),
-         WRITE(*,*) '-------------------------------------------------'
-         WRITE(*,*) 'Hdesign ',HTK(J,I)
-         WRITE(*,*) 'CRTDATE',CRTDATE,'Reservoir No.',J,' FLOWIN ',FLOWIN(J,I),
      &  'FLOWOUT',FLOWOUT(J,I),' VOL ',VOL(J,I),' ELEC', ENERGYPRO(J,I)
         END DO
         IF (RESFLOWS(NO_STAS,I) .LT. 0) THEN
