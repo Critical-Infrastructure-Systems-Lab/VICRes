@@ -45,12 +45,6 @@ VIC-Res is demonstrated on a ‘toy’ case study, that is, a small catchment wi
 
 The representation of water reservoirs is exemplified in the file *reservoirlocation.txt*, which contains two reservoirs (Reservoir 1 and Reservoir 2, IDs 1 and 2). The files containing all specifications of these reservoirs are named *res1.txt* and *res2.txt*.
 
-### Citation
-
-If you use VIC-Res, please cite the following paper:
-
-*T.D. Dang, A.K. Chowdhury, and  S. Galelli. On  the  representation  of  water reservoir storage and operations in large-scale hydrological models:  implications on model parameterization and climate change impact assessments. Hydrology and Earth System Sciences, 2019:24, 397–416.* ![DOI](https://img.shields.io/badge/DOI-doi.org%2F10.5194%2Fhess--2019--334-lightgrey)
-
 ## Acknowledgments
 
 VIC-Res development is supported by Singapore's Ministry of Education (MoE) via the Tier 2 project "Linking water availability to hydropower supply-an engineering system approach" (Award No. MOE2017-T2-1-143).
@@ -58,3 +52,13 @@ VIC-Res development is supported by Singapore's Ministry of Education (MoE) via 
 ### Contact
 
 For questions and feedback related to VIC-Res—and requests to fix possible bugs—please send an email to thanhiwer@gmail.com (Thanh Dang), Resilient Water Systems Group, Singapore University of Technology and Design, Singapore.
+
+### Citation
+
+If you use VIC-Res, please cite the following paper:
+
+*T.D. Dang, A.K. Chowdhury, and  S. Galelli. On  the  representation  of  water reservoir storage and operations in large-scale hydrological models:  implications on model parameterization and climate change impact assessments. Hydrology and Earth System Sciences, 2019:24, 397–416.* ![DOI](https://img.shields.io/badge/DOI-doi.org%2F10.5194%2Fhess--2019--334-lightgrey)
+
+### Note
+
+Recently, we release a new software package to optimize the operation of artificial reservoirs. Please see at the following link: https://github.com/thanhiwer/VICResOpt
