@@ -2,7 +2,7 @@
 
 # VIC-Res: Representation of water reservoir storage and operations in the Variable Infiltration Capacity (VIC) model
 
-The Variable Infiltration Capacity (VIC) model is a popular large-scale hydrological model developed and maintained by the University of Washington, US. VIC has been used extensively to study and model river basins around the world. The model simulates key hydrological processes occurring in a river basin (e.g., water and energy balances, streamflow routing), but does not account for the operations of artificial water reservoirs. Since the environmental impact of reservoirs comes under ever-increasing scrutiny, we developed a variant of VIC that allows to account for the presence of these infrastructures. More details about the development of this variant are presented in [Dang et al. (2019)](https://www.hydrol-earth-syst-sci-discuss.net/hess-2019-334/).
+The Variable Infiltration Capacity (VIC) model is a popular large-scale hydrological model developed and maintained by the University of Washington, US. VIC has been used extensively to study and model river basins around the world. The model simulates key hydrological processes occurring in a river basin (e.g., water and energy balances, streamflow routing), but does not account for the operations of artificial water reservoirs. Since the environmental impact of reservoirs comes under ever-increasing scrutiny, we developed a variant of VIC that allows to account for the presence of these infrastructures. More details about the development of this variant are presented in [Dang et al. (2020)](https://hess.copernicus.org/articles/24/397/2020/hess-24-397-2020.html).
 
 ### Prerequisites
 
@@ -51,7 +51,7 @@ VIC-Res development is supported by Singapore's Ministry of Education (MoE) via 
 
 ### Contact
 
-For questions and feedback related to VIC-Res—and requests to fix possible bugs—please send an email to thanhiwer@gmail.com (Thanh Dang), Resilient Water Systems Group, Singapore University of Technology and Design, Singapore.
+For questions and feedback related to VIC-Res—and requests to fix possible bugs—please send an email to thanhiwer@gmail.com (Thanh Dang). Alternatively, you may reach out to stefano_galelli@sutd.edu.sg (Stefano Galelli).
 
 ### Citation
 
@@ -61,4 +61,4 @@ If you use VIC-Res, please cite the following paper:
 
 ### Note
 
-Recently, we release a new software package to optimize the operation of artificial reservoirs. Please see at the following link: https://github.com/thanhiwer/VICResOpt
+Recently, we release a new software package to optimize the operation of artificial reservoirs. Please see at the following link: https://github.com/Critical-Infrastructure-Systems-Lab/VICResOpt
