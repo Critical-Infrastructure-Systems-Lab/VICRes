@@ -58,6 +58,7 @@ For questions and feedback related to VIC-Res—and requests to fix possible bug
 If you use VIC-Res, please cite the following papers:
 
 *Dang, T.D., Chowdhury, AFMK, Galelli, S. (2020) On the representation of water reservoir storage and operations in large-scale hydrological models: implications on model parameterization and climate change impact assessments. Hydrology and Earth System Sciences, 24, 397–416. [Link](https://hess.copernicus.org/articles/24/397/2020/hess-24-397-2020.html)
+
 *Dang, T.D., Vu, T.D. Chowdhury, K., Galelli, S. (2020) A software package for the representation and optimization of water reservoir operations in the VIC hydrologic model. Environmental Modelling & Software, 126, 104673. [Link](https://www.sciencedirect.com/science/article/abs/pii/S1364815219310291?via%3Dihub)
 
 ### Note
