@@ -1,6 +1,20 @@
+<<<<<<< HEAD
 0 OUTLET 3 1 -9999
 NONE
 1 SITE1 3 1 -9999
 NONE
 0 SITE2 3 3 -9999
 NONE
+=======
+<<<<<<< HEAD
+1 OUTLET 3 1 -9999
+NONE
+=======
+0 OUTLET 3 1 -9999
+NONE
+1 SITE1 3 1 -9999
+NONE
+0 SITE2 3 3 -9999
+NONE
+>>>>>>> master-holder
+>>>>>>> 2af16da59bc9e45d9e6ff1e9f9823eba3b96501c
