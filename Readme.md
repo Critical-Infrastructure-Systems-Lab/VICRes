@@ -1,4 +1,3 @@
-<<<<<<< HEAD
  ![Build](https://img.shields.io/badge/VIC--Res-developing-orange) ![Version](https://img.shields.io/badge/version-1.0-blue)
 
 # VIC-Res: Representation of water reservoir storage and operations in the Variable Infiltration Capacity (VIC) model
