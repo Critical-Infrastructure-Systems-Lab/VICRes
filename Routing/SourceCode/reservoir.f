@@ -196,10 +196,10 @@ C*******************************************************************************
      &      (RPATH,RESER,NCOL, NROW, NO_OF_BOX, PMAX, DAYS, CATCHIJ,
      &      BASE, RUNO, FLOW, KE, UH_DAY, UH_S, FRACTION, FACTOR_SUM,
      &      XC, YC, SIZE, DPREC, INPATH,ICOL,NDAY,IDAY,IMONTH,IYEAR, START_YEAR, START_MO,
-     &      MO, YR, NYR, VOL, FLOWIN, FLOWOUT, HHO, RESFLOWS, NO,RES_EVAPORATION, NO_STAS)
+     &      MO, YR, NYR, VOL, FLOWIN, FLOWOUT, HHO, RESFLOWS, NO, RESN, RES_EVAPORATION, NO_STAS)
         IMPLICIT NONE
 c       Declare variables
-        INTEGER     N, NO, I, J, DAYS, NDAY, II, JJ, K, SODONG
+        INTEGER     N, NO, RESN, I, J, DAYS, NDAY, II, JJ, K, SODONG
         INTEGER     NCOL,NROW,ICOL,PMAX,KE,UH_DAY
         INTEGER     NO_OF_BOX(200)
         INTEGER     CATCHIJ(PMAX,2,200)
@@ -287,7 +287,7 @@ C ***   K_CONST smaller 1.0 makes it a simple linear storage
         END DO
 C       Look for starting year
         IF (NO .NE. NO_STAS) THEN
-            WRITE(RESNO,*) NO
+            WRITE(RESNO,*) RESN
             TEMPRPATH = trim(RPATH)//"res"//trim(ADJUSTL(RESNO))//".txt"			! only calculate open surface water evaporation after the commision year
             OPEN(26, FILE = TEMPRPATH,FORM = 'FORMATTED', STATUS='OLD',ERR=9002)
             READ(26,*)
@@ -747,7 +747,7 @@ c       Look for reservoirs sequences
      &          CATCHIJ, BASE, RUNO, FLOW, KE, UH_DAY, UH_S, FRACTION,
      &          FACTOR_SUM,XC,YC,SIZE,DPREC,INPATH,ICOL,NDAY,
      &          IDAY,IMONTH,IYEAR, START_YEAR, START_MO, MO, YR, NYR, VOL,
-     &          FLOWIN, FLOWOUT, HHO, RESFLOWS,RES_DIRECT(N,1),RES_EVAPORATION, NO_STAS)
+     &          FLOWIN, FLOWOUT, HHO, RESFLOWS,N,RES_DIRECT(N,1),RES_EVAPORATION, NO_STAS)
         END DO
 c       Initiate reservoir parameters
         DO I = 1, NDAY
