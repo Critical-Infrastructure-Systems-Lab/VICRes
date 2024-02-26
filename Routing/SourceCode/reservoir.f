@@ -196,10 +196,10 @@ C*******************************************************************************
      &      (RPATH,RESER,NCOL, NROW, NO_OF_BOX, PMAX, DAYS, CATCHIJ,
      &      BASE, RUNO, FLOW, KE, UH_DAY, UH_S, FRACTION, FACTOR_SUM,
      &      XC, YC, SIZE, DPREC, INPATH,ICOL,NDAY,IDAY,IMONTH,IYEAR, START_YEAR, START_MO,
-     &      MO, YR, NYR, VOL, FLOWIN, FLOWOUT, HHO, RESFLOWS, NO,RES_EVAPORATION, NO_STAS)
+     &      MO, YR, NYR, VOL, FLOWIN, FLOWOUT, HHO, RESFLOWS, NO, RESN, RES_EVAPORATION, NO_STAS)
         IMPLICIT NONE
 c       Declare variables
-        INTEGER     N, NO, I, J, DAYS, NDAY, II, JJ, K, SODONG
+        INTEGER     N, NO, RESN, I, J, DAYS, NDAY, II, JJ, K, SODONG
         INTEGER     NCOL,NROW,ICOL,PMAX,KE,UH_DAY
         INTEGER     NO_OF_BOX(200)
         INTEGER     CATCHIJ(PMAX,2,200)
@@ -287,7 +287,7 @@ C ***   K_CONST smaller 1.0 makes it a simple linear storage
         END DO
 C       Look for starting year
         IF (NO .NE. NO_STAS) THEN
-            WRITE(RESNO,*) NO
+            WRITE(RESNO,*) RESN
             TEMPRPATH = trim(RPATH)//"res"//trim(ADJUSTL(RESNO))//".txt"			! only calculate open surface water evaporation after the commision year
             OPEN(26, FILE = TEMPRPATH,FORM = 'FORMATTED', STATUS='OLD',ERR=9002)
             READ(26,*)
@@ -747,7 +747,7 @@ c       Look for reservoirs sequences
      &          CATCHIJ, BASE, RUNO, FLOW, KE, UH_DAY, UH_S, FRACTION,
      &          FACTOR_SUM,XC,YC,SIZE,DPREC,INPATH,ICOL,NDAY,
      &          IDAY,IMONTH,IYEAR, START_YEAR, START_MO, MO, YR, NYR, VOL,
-     &          FLOWIN, FLOWOUT, HHO, RESFLOWS,RES_DIRECT(N,1),RES_EVAPORATION, NO_STAS)
+     &          FLOWIN, FLOWOUT, HHO, RESFLOWS,N,RES_DIRECT(N,1),RES_EVAPORATION, NO_STAS)
         END DO
 c       Initiate reservoir parameters
         DO I = 1, NDAY
@@ -830,7 +830,7 @@ c       Initiate reservoir parameters
             DO J = 1, NO_STAS-1
                 CURRENTYEAR = START_YEAR + INT(I/365)		! approximate, does not consider leap years
             IF (CURRENTYEAR>=OPEYEAR(J)) THEN
-                VRESER(J) = VRESERTHAT(J)
+                VRESER(J) = VRESERTHAT(J)+VDEAD(J)
                 REALHEAD(J) = HYDRAUHEAD(J)
                 QRESER(J) = QRESERTHAT(J)
             ELSE
@@ -850,43 +850,35 @@ c           Note RULE = 1: simplified rule curve - 2: rule curve - 3: operating 
                 END IF
                 IF (RULE(J) .EQ. 1) THEN
                     IF (OP1(J,1)>OP1(J,2)) THEN
-                        TEMPO = OP1(J,1)
-                        OP1(J,1) = OP1(J,2)
-                        OP1(J,2) = TEMPO
-                    END IF
                     ! Caculate target water level
-                    IF ((CRTDATE .GT. OP1(J,1)) .and. (CRTDATE .LT. OP1(J,2))) THEN
-                        IF (HMAX(J) .GE. HMIN(J)) THEN
-                            DESIGNWL=(CRTDATE-OP1(J,1))/(OP1(J,2)-OP1(J,1))
+                        IF ((CRTDATE .GT. OP1(J,2)) .and. (CRTDATE .LT. OP1(J,1))) THEN
+                           DESIGNWL=(CRTDATE-OP1(J,2))/(OP1(J,1)-OP1(J,2))
      &                      *(HMAX(J)-HMIN(J))
-                        ELSE
-                            DESIGNWL=(HMIN(J)-HMAX(J))-(CRTDATE-OP1(J,1))/(OP1(J,2)-OP1(J,1))
-     &                      *(HMIN(J)-HMAX(J))
-                        END IF
-                    ELSE IF (CRTDATE .GE. OP1(J,2)) THEN
-                        IF (HMAX(J) .GE. HMIN(J)) THEN 
+                        ELSE IF (CRTDATE .GE. OP1(J,1)) THEN 
                            DESIGNWL=(HMAX(J)-HMIN(J))
-     &                     -(CRTDATE-OP1(J,2))/(365-OP1(J,2)+OP1(J,1))*
+     &                     -(CRTDATE-OP1(J,1))/(365-OP1(J,1)+OP1(J,2))*
      &                     (HMAX(J)-HMIN(J))
                         ELSE
-                           DESIGNWL=(CRTDATE-OP1(J,2))/(365-OP1(J,2)+OP1(J,1))*
-     &                     (HMIN(J)-HMAX(J))
+                            DESIGNWL=(HMAX(J)-HMIN(J))
+     &                          -(CRTDATE+365-OP1(J,1))/(365-OP1(J,1)+OP1(J,2))*
+     &                          (HMAX(J)-HMIN(J))
                         END IF
                     ELSE
-                        IF (HMAX(J) .GE. HMIN(J)) THEN 
-                            DESIGNWL=(HMAX(J)-HMIN(J))
-     &                      -(CRTDATE+365-OP1(J,2))/(365-OP1(J,2)+OP1(J,1))*
-     &                     (HMAX(J)-HMIN(J))
-                        ELSE
-                        DESIGNWL=(CRTDATE+365-OP1(J,2))/(365-OP1(J,2)+OP1(J,1))*
-     &                  (HMIN(J)-HMAX(J))
+                        IF ((CRTDATE .GT. OP1(J,1)) .and. (CRTDATE .LT. OP1(J,2))) THEN
+                           DESIGNWL=(HMAX(J)-HMIN(J))-(CRTDATE-OP1(J,1))/(OP1(J,2)-OP1(J,1))
+     &                      *(HMAX(J)-HMIN(J))
+                        ELSE IF (CRTDATE .GE. OP1(J,2)) THEN 
+                           DESIGNWL=(HMAX(J)-HMIN(J))/(365-OP1(J,2)+OP1(J,1))*(CRTDATE-OP1(J,2))
+                        ELSE 
+                            DESIGNWL=(HMAX(J)-HMIN(J))/(365-OP1(J,2)+OP1(J,1))*
+     &                     (CRTDATE-OP1(J,1))
+                        END IF
                     END IF
+                    DESIGNWL = DESIGNWL + (HMIN(J) - H0(J))
+                ELSE
+                    DESIGNWL = RESLV(J,CAL_MONTH(CRTDATE))
+                    DESIGNWL = DESIGNWL - H0(J)
                 END IF
-                DESIGNWL = DESIGNWL + (HMIN(J) - HRESERMIN(J))
-            ELSE
-                DESIGNWL = RESLV(J,CAL_MONTH(CRTDATE))
-                DESIGNWL = DESIGNWL - H0(J)
-            END IF
             HTK(J,I) = DESIGNWL + H0(J)													! water head
             CURRENTWL = VOL(J,I) * (HRESERMAX(J)-H0(J))/VRESER(J)
             IF (CURRENTWL>=DESIGNWL) THEN												! Zone 3
