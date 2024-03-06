@@ -36,8 +36,8 @@ c     filenames allowed a maximum of 5 decimal places
       CHARACTER*20 EXTEN
       REAL JLOC, ILOC
       INTEGER NSPACE, CLEN, CLEN_OLD, DPREC, I
-      WRITE(JICHAR(1),'(F10.5)')JLOC
-      WRITE(JICHAR(2),'(F10.5)')ILOC
+      WRITE(JICHAR(1),'(F10.5)')ILOC
+      WRITE(JICHAR(2),'(F10.5)')JLOC
       CLEN_OLD=1
       DO I=1,2
          NSPACE=1
