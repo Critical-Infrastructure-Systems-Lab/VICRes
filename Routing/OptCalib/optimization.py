@@ -212,7 +212,7 @@ def viccall(vars):
         if 	(temphydrofirm[i]<hydrofirm):
              hydrofirm=temphydrofirm[i]
     hydrofirm=1-(hydrofirm/30)/totalinstallcapcity			# normalize the smallest monthly value of the firm hydropower
-    totalproduction = 1 - (totalproduction/countrow)/totalinstallcapcity	# calculate daily average and normalize
+    totalproduction = 1 - (totalproduction/(countrow-spinning_period))/totalinstallcapcity	# calculate daily average and normalize
     # - Calculate water deficit for the whole system
     countrow2 = 0
     for i in range(spinning_period,countrow):
