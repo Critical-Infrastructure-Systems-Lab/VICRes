@@ -886,7 +886,7 @@ c           Note RULE = 1: simplified rule curve - 2: rule curve - 3: operating 
      &          >(DESIGNWL* VRESER(J)) /(HRESERMAX(J)-H0(J))) THEN
                     VOL(J,I+1) = VOL(J,I) + FLOWIN(J,I)*24*3.6-QRESER(J)*24*3.6
                     FLOWOUT(J,I) = QRESER(J)
-                    VOL(J,I+1)=(DESIGNWL*VRESER(J))/(HRESERMAX(J)-H0(J))
+c                    VOL(J,I+1)=(DESIGNWL*VRESER(J))/(HRESERMAX(J)-H0(J))                                        !to be checked: unnecessary/wrong calculation
                 ELSE																	! Case 1
                     VOL(J,I+1)=(DESIGNWL*VRESER(J))/(HRESERMAX(J)-H0(J))
                     FLOWOUT(J,I)=(VOL(J,I)-VOL(J,I+1))/24/3.6 + FLOWIN(J,I)
@@ -1000,8 +1000,8 @@ c           Note RULE = 1: simplified rule curve - 2: rule curve - 3: operating 
         IF (FLOWOUT(J,I)<0) THEN
             FLOWOUT(J,I)=0
         END IF
-        IF (VOL(I,J)<0)THEN ! Not allow dropping below the minimum water level (mostly due to evaporation)
-            VOL(I,J)=0
+        IF (VOL(J,I)<0)THEN ! Not allow dropping below the minimum water level (mostly due to evaporation)
+            VOL(J,I)=0
         END IF
 c       Remote water for irrigation
         IF (FLOWOUT(J,I)>=IRRIGATION(J,I)) THEN
