@@ -56,7 +56,7 @@ def viccall(vars):
         resname = lines[1].split('\t')[8]
         seepage = float(lines[3].split('\t')[0])
         infil = float(lines[3].split('\t')[1])
-        opt = int(lines[5].split('\t')[0])
+        opt = int(lines[8].split('\t')[0])
         if (opt==3):
             D4demand = float(lines[6].split('\t')[0])
         elif (opt==5):
@@ -68,6 +68,9 @@ def viccall(vars):
             my_csv.write("%f\t%f\t%f\t%f\t%f\t%f\t%i\t%f\t%s\n"%(hmax,hmin,volume,dvolume,height,discharge,yearopt,initialvolume,resname))
             my_csv.write("SEEPAGE	INFILTRATION\n")
             my_csv.write("%f\t%f\n"%(seepage,infil))
+            my_csv.write("IRRIGATION\n")
+            my_csv.write("%d\n"%0)
+            my_csv.write("DUMMY\n")
             my_csv.write("OPERATION STRATEGY\n")
             my_csv.write(str(opt)+"\n")
             if (opt==1):
@@ -100,7 +103,7 @@ def viccall(vars):
                         x3 = temp
                     my_csv.write("%f\t%f\t%f\t%f\t%f\n"%(D5demand[j],x1,x2,x3,x4))
                     countrow+=4
-        totalinstallcapcity+=0.9*9.81*height*discharge
+        totalinstallcapcity+=0.9*9.81*height*discharge*10^(-3) #MW
     # 9.81 is the gravitational acceleration; 0.9 is turbine coefficient (change if needed but remember to change in routing model - reservoir.f)
 
     # Run routing model
@@ -117,7 +120,7 @@ def viccall(vars):
     waterdeficit = 0.0
     peakds = 0.0
     waterdeviation = 0.0
-    hydrofirm = totalinstallcapcity * 30 * 24 * 1000		 # In a month: 30 days x 24h x 1000 (MWh) - just for a cap value; not important
+    hydrofirm = totalinstallcapcity * 30 * 24 		 # In a month: 30 days x 24h (MWh) - just for a cap value; not important
     VICdata = [[0 for x in range(4)] for y in range(number_of_days)]
     for line in lines:
         try:
@@ -208,8 +211,8 @@ def viccall(vars):
     for i in range(monthth):							# ignore the last month which is normally in the wet season
         if 	(temphydrofirm[i]<hydrofirm):
              hydrofirm=temphydrofirm[i]
-    hydrofirm=1-hydrofirm/30/24/1000/totalinstallcapcity			# normalize the value smallest montlhy value of the firm hydropower
-    totalproduction = 1 - totalproduction/totalinstallcapcity/24 *1000/countrow	# calculate annual average and normalize
+    hydrofirm=1-(hydrofirm/30)/totalinstallcapcity			# normalize the smallest monthly value of the firm hydropower
+    totalproduction = 1 - (totalproduction/countrow)/totalinstallcapcity	# calculate daily average and normalize
     # - Calculate water deficit for the whole system
     countrow2 = 0
     for i in range(spinning_period,countrow):
@@ -305,7 +308,7 @@ for i in range(maximum_no_reservoirs):
     lines = text_file.read().split('\n')
     hmax = float(lines[1].split('\t')[0])
     hmin = float(lines[1].split('\t')[1])
-    opt = int(lines[5].split('\t')[0])
+    opt = int(lines[8].split('\t')[0])
     vcap = float(lines[1].split('\t')[2])							#vcapacity
     vd = float(lines[1].split('\t')[3])								#vdead
     text_file.close()
