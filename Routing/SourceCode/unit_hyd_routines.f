@@ -51,9 +51,9 @@ c     Solve for
      & (DIREC, NOB, UH_DAY, TMAX, PI, PJ, LE, UH_DAILY, KE,
      &  CATCHIJ, UHM, FR, PMAX, NCOL, NROW, UH_BOX,
      &  UH_S, UH_STRING, NAME5,NORESERVOIRS, RESER,
-     &	RESERNAME,RES_DIRECT)
+     &	RESERNAME,RES_DIRECT,LAST)
       IMPLICIT NONE
-      INTEGER UH_DAY, TMAX, PMAX, KE
+      INTEGER UH_DAY, TMAX, PMAX, KE, LAST
       INTEGER NOB(200)
       INTEGER PI, PJ, LE, NCOL, NROW
       INTEGER DIREC(NCOL,NROW,2)
@@ -76,6 +76,9 @@ c     Solve for
 			RESORDER = I
         END IF
    	  END DO
+      IF (LAST .EQ. 1) THEN
+            RESORDER = NORESERVOIRS
+      END IF
       IF (UH_STRING(1:4) .ne. 'NONE') THEN       ! read UH_S grid, not make it
         print*, 'reading UH_S grid from file'
         open(98, file=UH_STRING, status='old')
