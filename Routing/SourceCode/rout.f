@@ -228,7 +228,7 @@ c     Make UH grid for reservoir catchments
      &          CATCHIJ,UHM, FR, PMAX, NCOL, NROW, UH_BOX, UH_S,
      &          UH_STRING,NAMERS,NORESERVOIRS,RESER,
      &          RESER(CATCHIJ(N,1,NORESERVOIRS),CATCHIJ(N,2,NORESERVOIRS)),
-     &          RES_DIRECT)
+     &          RES_DIRECT,0)
         END IF
       END DO
 c     Make UH grid for the rest of the basin to the basin outlet
@@ -239,7 +239,7 @@ c     Make UH grid for the rest of the basin to the basin outlet
       CALL MAKE_GRID_UH
      &         (DIREC, NO_OF_BOX, UH_DAY, TMAX, PI, PJ, LE, UH_DAILY, KE,
      &         CATCHIJ,UHM, FR, PMAX, NCOL, NROW, UH_BOX, UH_S,
-     &         UH_STRING,NAME5,NORESERVOIRS,RESER,NORESERVOIRS,RES_DIRECT)
+     &         UH_STRING,NAME5,NORESERVOIRS,RESER,NORESERVOIRS,RES_DIRECT,1)
 c     Flow generation
       print*, 'making convolution...'
          CALL MAKE_CONVOLUTIONRS
