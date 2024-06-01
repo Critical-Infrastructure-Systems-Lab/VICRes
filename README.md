@@ -102,7 +102,14 @@ As for the objective functions, users can choose among the Nash-Sutcliffe Effici
 
 ### How to customize
 
-**A. How to customize the reservoir component of VIC-ResOpt**
+**A.How to run VICRes considering multiple reservoirs and multiple stations**
+
+VICRes is designed to model multiple reservoirs within the considered basin and to estimate the discharges for multiple stations throughout the basin. However, the code in this repository allows for the modelization of a maximum of 200 reservoirs and 20 stations. If you want to consider more reservoirs and/or stations, you need to open the file rout.f in the source code and modify at row 25 the values of the two parameters NUMRES (number of reservoirs) and NREACH (number of stations) accordingly.
+
+Additionally, here follow a couple of suggestions on how to set up the 'stations.txt' file required for modeling multiple stations. Each station in the 'stations.txt' file (located in the 'RoutingSetup' folder) needs to be defined with a unique number, followed by the term 'STATION' (e.g., '1STATION', '2STATION', ..., 'NSTATION'). This is because when the model reads the 'stations.txt' file, it saves the station names in a string of 5 characters. Therefore, if the unique number comes first, the model can differentiate between the different station names.
+Finally, the station corresponding to the outlet section of the river basin must be the last station in the station list in the 'stations.txt' file. The model reads the file station by station and remembers the order in which it reads them. In the end, it outputs files for the reservoirs only for the last station. If this station corresponds to the outlet section of the basin, it will automatically include all the reservoirs present in the basin.
+
+**B. How to customize the reservoir component of VIC-ResOpt**
 
 Representation of water reservoirs:
 The reservoir location is stored in the file *reservoirlocation.txt*, which has the same number of rows and columns of the flow direction matrix. This file contains integer numbers:
@@ -123,11 +130,11 @@ For each reservoir (e.g., ID = 1), there is a reservoir configuration file (e.g.
 * Option 5: Operating rule. Similar to Option 3, but the operating rules can be different in every month (twelve operating rules for a year)
 * Option 6: Predefined reservoir volume time series data. Similar to Option 4, users must provide a link to a time series, containing daily volume data over the simulation perdiod. Although the time series data are provided, the real volumn is depedent on the available water. 
 
-**B. How to customize other components (optimization, sensitivity analysis, and automatic calibration)**
+**C. How to customize other components (optimization, sensitivity analysis, and automatic calibration)**
 
 Each of these functions has a configuration file as (mentioned above). Users only need to modify this configuration file, so they do not need to change the current file/folder arrangement. The current version of VIC-ResOpt is available with the eps-NSGA-II algorithm, so in case another MOEA algorithm is chosen, please change the algorithm's parameters accordingly.
 
-**C. How to implement parallel modelling**
+**D. How to implement parallel modelling**
 
 Users can parallelize modelling steps in optimization, sensitivity analyses, and automatic calibration via the two following steps:
 
