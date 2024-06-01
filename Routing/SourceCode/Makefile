@@ -16,21 +16,24 @@
 #Comment out one of the following depending on your compiler
 
 #If compiling on SUN and LINUX use  (remember -O)
-FFLAGS = -O -C -ffixed-line-length-none
+FFLAGS = -O -C -ffixed-line-length-none -mcmodel=medium
+CFLAGS = -g -Wall
 #If compiling on HP use
 #FFLAGS = -C -O +U77 -ffixed-line-length-none
 #for debugging
 #FFLAGS = -C -g -lm -ffixed-line-length-none
 
-FC=gfortran -m64
+FC= gfortran -m64 
+
 
 HFILES=    	parameter.h
 
-OBJECTS=	    rout.o 			    \
-                reservoir.o	   	    \
+OBJECTS=	    rout.o 			\
+                reservoir.o		\
                 write_routines.o	\
                 unit_hyd_routines.o	\
-                init_routines.o		
+                init_routines.o	
+
 
 exe:		$(OBJECTS)
 	$(FC) $(FFLAGS) $(OBJECTS) -o rout
@@ -41,5 +44,9 @@ write_routines.o:		write_routines.f
 unit_hyd_routines.o:		unit_hyd_routines.f
 init_routines.o:		init_routines.f
 
-clean:
-	/bin/rm *.o
+
+clean: 
+	rm -fr rout *.o core
+.f.o :
+	${FC} ${INC} ${FFLAGS} -c $<
+

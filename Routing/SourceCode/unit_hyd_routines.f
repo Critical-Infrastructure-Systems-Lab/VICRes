@@ -51,32 +51,32 @@ c     Solve for
      & (DIREC, NOB, UH_DAY, TMAX, PI, PJ, LE, UH_DAILY, KE,
      &  CATCHIJ, UHM, FR, PMAX, NCOL, NROW, UH_BOX,
      &  UH_S, UH_STRING, NAME5,NORESERVOIRS, RESER,
-     &	RESERNAME,RES_DIRECT,LAST)
+     &	RESERNAME,RES_DIRECT,RESORDER,FINAL,NUMRES)
       IMPLICIT NONE
-      INTEGER UH_DAY, TMAX, PMAX, KE, LAST
-      INTEGER NOB(200)
-      INTEGER PI, PJ, LE, NCOL, NROW
+      INTEGER UH_DAY, TMAX, PMAX, KE, NUMRES
+      INTEGER NOB(NUMRES)
+      INTEGER PI, PJ, LE, NCOL, NROW, FINAL
       INTEGER DIREC(NCOL,NROW,2)
       REAL    UH_DAILY(PMAX,UH_DAY)
-      INTEGER CATCHIJ(PMAX,2,200)
+      INTEGER CATCHIJ(PMAX,2,NUMRES)
       REAL    UHM(NCOL,NROW,LE), FR(TMAX,2)
       REAL    UH_BOX(PMAX,KE)
-      REAL    UH_S(PMAX,KE+UH_DAY-1,200)
+      REAL    UH_S(PMAX,KE+UH_DAY-1,NUMRES)
       INTEGER N, I, J, K, L, T, II, JJ, TT, U
       INTEGER 	RESER(NCOL,NROW)
    	  REAL    SUM
    	  INTEGER stat
-   	  INTEGER 	RES_DIRECT(200,3)
+   	  INTEGER 	RES_DIRECT(NUMRES,3)
    	  CHARACTER*80 UH_STRING       !new, AW
-   	  CHARACTER*5  NAME5
+   	  CHARACTER*7  NAME5
    	  INTEGER NORESERVOIRS,RESORDER, RESERNAME
    	  RESORDER = NORESERVOIRS
-   	  DO I = 1, NORESERVOIRS
+   	  DO I = 1, (NORESERVOIRS-1)
         IF (RESERNAME .EQ. RES_DIRECT(I,1)) THEN
-			RESORDER = I
+			    RESORDER = I
         END IF
    	  END DO
-      IF (LAST .EQ. 1) THEN
+      If (FINAL .EQ. 1) THEN
             RESORDER = NORESERVOIRS
       END IF
       IF (UH_STRING(1:4) .ne. 'NONE') THEN       ! read UH_S grid, not make it
@@ -156,11 +156,13 @@ c     Solve for
             UH_S(N,K,RESORDER) = UH_S(N,K,RESORDER) / SUM
           END DO
         END DO
+        
 c   write out the grid for future reference...
         DO N = 1,NOB(RESORDER)
           WRITE(98, *) (UH_S(N,K,RESORDER), K = 1,KE+UH_DAY-1)
         END DO
       END IF
+
       close(98)
       RETURN
       END

@@ -1,4 +1,3 @@
-c     18/07/2023 correct an error related to NORESERVOIRS when running routing with multiple outlet (Line 98) - Thank Bruno Invernizzi (Politechnico di Milano)
 c     SUBROUTINES FOR INITIALIZATION (roughly)
 
 C************************************************************************************************************************************************************************************
@@ -84,15 +83,15 @@ C*******************************************************************************
 
       SUBROUTINE SEARCH_WHOLECATCHMENT
      & (PI,PJ,DIREC,NCOL,NROW,NO_OF_BOX,CATCHIJ,PMAX,
-     $  IROW,ICOL,NORESERVOIRS,RES_DIRECT,RESER)
+     $  IROW,ICOL,NORESERVOIRS,RES_DIRECT,RESER,NUMRES)
       IMPLICIT NONE
-      INTEGER PI,PJ,I,J,NCOL,NROW,PMAX,ICOL,IROW
+      INTEGER PI,PJ,I,J,NCOL,NROW,PMAX,ICOL,IROW,NUMRES,N
       INTEGER II,JJ,III,JJJ,K
       INTEGER DIREC(NCOL,NROW,2)
-      INTEGER NO_OF_BOX(200)
-      INTEGER CATCHIJ(PMAX,2,200)
+      INTEGER NO_OF_BOX(NUMRES)
+      INTEGER CATCHIJ(PMAX,2,NUMRES)
       INTEGER NORESERVOIRS
-      INTEGER RES_DIRECT(200,3)
+      INTEGER RES_DIRECT(NUMRES,3)
       INTEGER RESER(NCOL,NROW)
       INTEGER CELL_OF_RES
       NORESERVOIRS = 0
@@ -100,6 +99,7 @@ C*******************************************************************************
       RES_DIRECT(NORESERVOIRS,1) = NORESERVOIRS
       NO_OF_BOX(NORESERVOIRS) = 0
       CELL_OF_RES = 0
+      print*,PI
       DO I = 1, ICOL
         DO J = 1, IROW
             II = I
@@ -111,8 +111,10 @@ C*******************************************************************************
             END IF
             IF ((II .EQ. PI) .AND. (JJ .EQ. PJ)) THEN
                NO_OF_BOX(NORESERVOIRS) = NO_OF_BOX(NORESERVOIRS) + 1
-               CATCHIJ(NO_OF_BOX,1,NORESERVOIRS) = I
-               CATCHIJ(NO_OF_BOX,2,NORESERVOIRS) = J
+               CATCHIJ(NO_OF_BOX(NORESERVOIRS),1,NORESERVOIRS) = I
+               CATCHIJ(NO_OF_BOX(NORESERVOIRS),2,NORESERVOIRS) = J
+               
+               
                GOTO 310
             ELSE
                IF ((DIREC(II,JJ,1).NE.0) .AND.
@@ -121,6 +123,7 @@ C*******************************************************************************
                      JJJ = DIREC(II,JJ,2)
                      II  = III
                      JJ  = JJJ
+                     
                      GOTO 300
                END IF
             END IF
@@ -142,6 +145,17 @@ C*******************************************************************************
             END IF
          END DO
       END DO
+C      PRINT *, 'RESER ', RESER(1:20,1:20)
+C      PRINT *, 'NCOL ', NCOL
+C      PRINT *, 'NROW ', NROW
+C      PRINT *, 'NO OF BOX ', NO_OF_BOX
+C      PRINT *, 'PMAX ', PMAX
+C      PRINT *, 'CATCHIJ ', CATCHIJ(1:10,1,1:10)
+C      PRINT *, 'ICOL ', ICOL
+C      PRINT *, 'IROW ', IROW
+C      PRINT *, 'DIREC ', DIREC(1:20,1:20,2)
+C      PRINT *, 'RES DIRECT', RES_DIRECT
+      PRINT *, 'NO RESERVOIRS ', NORESERVOIRS
       WRITE(*,*) 'Number of grid cells',
      $     no_of_box(NORESERVOIRS)
       RETURN

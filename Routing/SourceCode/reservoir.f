@@ -1,12 +1,11 @@
 c       Contain main subroutines of the routing component and reservoir operation
 c       Build based on the old make_convolution file 
-c       Note: currently the maximum number of reservoirs is 200. Modify the variable declaration parts to increase (if needed)
+c       Note: currently the maximum number of reservoirs is NUMRES. Modify the variable declaration parts to increase (if needed)
 c       28 Dec 2020 - Correct the bug related to the dead storage - Thank Mr. Arivoli and his collegues
-c       08 Aug 2023 - Add Operational rule No.6 and a bug related to the overextraction of water due to ET (thanks to Bruno)
 
 C************************************************************************************************************************************************************************************
 C       Read diffusion file
-C************************************************************************************************************************************************************************************
+
         SUBROUTINE READ_DIFF(DIFF,NCOL,NROW,FILENAME,IROW, ICOL)
 c       Declare variables
         INTEGER NCOL,NROW,IROW,ICOL,I,J
@@ -51,12 +50,12 @@ C*******************************************************************************
 C       Read GRID_UH
 C************************************************************************************************************************************************************************************
         SUBROUTINE READ_GRID_UH
-     &    (UH_BOX,KE,PMAX,NOB,CATCHIJ,FILENAME,NORESERVOIRS)
+     &    (UH_BOX,KE,PMAX,NOB,CATCHIJ,FILENAME,NORESERVOIRS, NUMRES)
         IMPLICIT NONE
 c       Declare variables
-        INTEGER KE, PMAX
-        INTEGER NOB(200)
-        INTEGER CATCHIJ(PMAX,2,200)
+        INTEGER KE, PMAX, NUMRES
+        INTEGER NOB(NUMRES)
+        INTEGER CATCHIJ(PMAX,2,NUMRES)
         INTEGER N,K,NORESERVOIRS
         REAL    UH_BOX(PMAX,KE)
         REAL    JUNK
@@ -148,6 +147,7 @@ c       Subroutine main body
             STOP
         ENDIF
         DO J = IROW,1,-1
+            
             READ(10,*) (H(I,J), I=ICOL,1,-1)
         END DO
         CLOSE(10)
@@ -194,15 +194,15 @@ C       Estimate flows at reservoirs/outets based on the unit hydrograph and lin
 C************************************************************************************************************************************************************************************
         SUBROUTINE MAKE_CONVOLUTION
      &      (RPATH,RESER,NCOL, NROW, NO_OF_BOX, PMAX, DAYS, CATCHIJ,
-     &      BASE, RUNO, FLOW, KE, UH_DAY, UH_S, FRACTION, FACTOR_SUM,
+     &      BASE, RUNO, FLOW, KE, UH_S, UH_DAY, FRACTION, FACTOR_SUM,
      &      XC, YC, SIZE, DPREC, INPATH,ICOL,NDAY,IDAY,IMONTH,IYEAR, START_YEAR, START_MO,
-     &      MO, YR, NYR, VOL, FLOWIN, FLOWOUT, HHO, RESFLOWS, NO, RESN, RES_EVAPORATION, NO_STAS)
+     &      MO, YR, NYR, VOL, FLOWIN, FLOWOUT, HHO, RESFLOWS, NO, resn, RES_EVAPORATION, NO_STAS, NUMRES)
         IMPLICIT NONE
 c       Declare variables
-        INTEGER     N, NO, RESN, I, J, DAYS, NDAY, II, JJ, K, SODONG
+        INTEGER     N, NO, resn, I, J, DAYS, NDAY, II, JJ, K, SODONG, NUMRES
         INTEGER     NCOL,NROW,ICOL,PMAX,KE,UH_DAY
-        INTEGER     NO_OF_BOX(200)
-        INTEGER     CATCHIJ(PMAX,2,200)
+        INTEGER     NO_OF_BOX(NUMRES)
+        INTEGER     CATCHIJ(PMAX,2,NUMRES)
         INTEGER     NYR, START_YEAR, START_MO
         INTEGER     RESER(NCOL,NROW)
         INTEGER     IDAY(DAYS), IMONTH(DAYS), IYEAR(DAYS)
@@ -212,23 +212,23 @@ c       Declare variables
         INTEGER     MONTH_OF_YEAR
         INTEGER     DPREC, CLEN
         INTEGER     OPEYEAR, NO_STAS
-        REAL        RES_EVAPORATION(200,DAYS)
-        REAL        UH_S(PMAX,KE+UH_DAY-1,200)
+        REAL        RES_EVAPORATION(NUMRES,DAYS)
+        REAL        UH_S(PMAX,KE+UH_DAY-1,NUMRES)
         REAL        BASE(DAYS), RUNO(DAYS), FLOW(DAYS), AIRTEMP(DAYS), WINDS(DAYS), RHD(DAYS)
         REAL        FRACTION(NCOL,NROW)
-        REAL        VRESER(200), QRESER(200)
-        REAL        HRESERMAX(200), HRESERMIN(200)
+        REAL        VRESER(NUMRES), QRESER(NUMRES)
+        REAL        HRESERMAX(NUMRES), HRESERMIN(NUMRES)
         REAL        V0, FLOWINN
         REAL        PI, RERD, FACTOR, FACTOR_SUM
         REAL        DESIGNWL, CURRENTWL
         REAL        JLOC, ILOC, EVA_FACTOR
         REAL        XC, YC, SIZE
         REAL        AREA, AREA_SUM
-        REAL        VOL(200,DAYS), FLOWIN(200,DAYS), FLOWOUT(200,DAYS)
-        REAL        HHO(200,DAYS)
+        REAL        VOL(NUMRES,DAYS), FLOWIN(NUMRES,DAYS), FLOWOUT(NUMRES,DAYS)
+        REAL        HHO(NUMRES,DAYS)
         REAL        K_CONST
         REAL        DUM1,DUM2,DUM3,DUM4,DUM5,DUM6,DUM7,DUM8,DUM9,DUM10,DUM11,DUM12,DUM13
-        REAL        RESFLOWS(200,DAYS)
+        REAL        RESFLOWS(NUMRES,DAYS)
         REAL        nN, Ra, deltagamma
         REAL        potentialevapo(DAYS)
         REAL        Ramatrix(12, 13)
@@ -241,6 +241,7 @@ c       Declare variables
         CHARACTER*100 TEMPRPATH
         CHARACTER*20 LOC
         CHARACTER*72 INPATH
+        CHARACTER*5 NAMES
         PARAMETER   (RERD  = 6371229.0)  											!radius of earth in meters
 c       Subroutine main body
 C       Ra matrix (mm day-1) for the Penman formula
@@ -287,14 +288,17 @@ C ***   K_CONST smaller 1.0 makes it a simple linear storage
         END DO
 C       Look for starting year
         IF (NO .NE. NO_STAS) THEN
-            WRITE(RESNO,*) RESN
+            WRITE(RESNO,*) resn
             TEMPRPATH = trim(RPATH)//"res"//trim(ADJUSTL(RESNO))//".txt"			! only calculate open surface water evaporation after the commision year
             OPEN(26, FILE = TEMPRPATH,FORM = 'FORMATTED', STATUS='OLD',ERR=9002)
             READ(26,*)
             READ(26,*) DUM1,DUM2,DUM3,DUM4,DUM5,DUM6, OPEYEAR
             CLOSE(26)
         END IF
-C       Calculate the area of each cell
+
+
+        
+C       Calculate the area of each cell        
         DO N = 1,NO_OF_BOX(NO) 
             DO I = 1,NDAY
                 RUNO(I) = 0.0
@@ -424,14 +428,14 @@ c       in input file
                 IF ((I-J+1) .GE. 1) THEN
                     FLOW(I) = FLOW(I)+UH_S(N,J,NO)*(BASE(I-J+1)+RUNO(I-J+1))
                 END IF
-            END DO   
+            END DO 
             ! allow negative values - evaporation is higher than inflow
             IF (potentialevapo(I)*EVA_FACTOR>(vic_eva_vege(I)+vic_eva_soil(I)+vic_trans_vege(I))) THEN
                 ! also consider the water losses due to evapotranspiration calculated by VIC rainfall-runoff
                 FLOW(I) = FLOW(I)-potentialevapo(I)*FACTOR*0.028/1000*EVA_FACTOR 
      &          + (vic_eva_soil(I)+vic_eva_vege(I)+vic_trans_vege(I))*FACTOR*0.028/1000
             END IF
-            IF (potentialevapo(I)<0.0001) THEN 			! if too small, set to 0, also avoid negative values
+            IF (potentialevapo(I)<0.0001) THEN          ! if too small, set to 0, also avoid negative values
                 potentialevapo(I) = 0
             END IF
             RESFLOWS(NO,I) = FLOW(I)
@@ -452,15 +456,15 @@ C*******************************************************************************
 C       Determine the distance/time from the downstream cell of a reservoir to its cascade reservoir
 C************************************************************************************************************************************************************************************
         SUBROUTINE CALCULATE_DISTANCE(SI,SJ,ICOL,IROW,NCOL,NROW,DIREC,TRVLTIME,
-     &  RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ)
+     &  RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ,NUMRES)
         IMPLICIT NONE
 c       Declare variables  
-        INTEGER SI,SJ,II,JJ,COUNTCELL,FINAL,NCOL,NROW,NORESERVOIRS,FI,FJ
+        INTEGER SI,SJ,II,JJ,COUNTCELL,FINAL,NCOL,NROW,NORESERVOIRS,FI,FJ,NUMRES
         INTEGER DIREC(NCOL,NROW,2)
         INTEGER RESER(NCOL,NROW)
         INTEGER I,J,ICOL,IROW,III,JJJ,RESORDER
         REAL    VELO(NCOL,NROW)
-        REAL    TRVLTIME(200)
+        REAL    TRVLTIME(NUMRES)
         REAL    SIZE_CELL
 c       Subroutine main body
         II = SI
@@ -500,20 +504,20 @@ C       Determine which cells contribute to flows at each reservoirs
 C************************************************************************************************************************************************************************************
         SUBROUTINE SEARCH_CATCHMENTRS
      &     (PI,PJ,DIREC,NCOL,NROW,NO_OF_BOX,CATCHIJ,PMAX,
-     $     IROW,ICOL,NORESERVOIRS,RES_DIRECT,RESER,FINAL,SIZE_CELL,VELO,FI,FJ)
+     $     IROW,ICOL,NORESERVOIRS,RES_DIRECT,RESER,FINAL,SIZE_CELL,VELO,FI,FJ,NUMRES)
         IMPLICIT NONE
 c       Declare variables
-        INTEGER PI,PJ,I,J,NCOL,NROW,PMAX,ICOL,IROW
+        INTEGER PI,PJ,I,J,NCOL,NROW,PMAX,ICOL,IROW,NUMRES
         INTEGER II, JJ, III, JJJ, K,FI,FJ
         INTEGER DIREC(NCOL,NROW,2)
-        INTEGER NO_OF_BOX(200)
-        INTEGER CATCHIJ(PMAX,2,200)
+        INTEGER NO_OF_BOX(NUMRES)
+        INTEGER CATCHIJ(PMAX,2,NUMRES)
         INTEGER RESER(NCOL,NROW)
-        INTEGER RES_DIRECT(200,3)
+        INTEGER RES_DIRECT(NUMRES,3)
         INTEGER NORESERVOIRS,RESORDER
         INTEGER FINAL
         REAL    SIZE_CELL
-        REAL    TRVLTIME(200)
+        REAL    TRVLTIME(NUMRES)
         REAL    VELO(NCOL,NROW)
 c       Subroutine main body
         RESORDER = NORESERVOIRS
@@ -569,7 +573,7 @@ c       Subroutine main body
                         IF (RESER(I-1,J) .EQ. RES_DIRECT(K,1)) THEN
                             RES_DIRECT(K,3) =  NO_OF_BOX(RESORDER)
                             CALL CALCULATE_DISTANCE(I,J,ICOL,IROW,NCOL,NROW,DIREC,TRVLTIME,
-     &                            RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ)
+     &                            RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ,NUMRES)
                         END IF
                     END DO
                 END IF
@@ -579,7 +583,7 @@ c       Subroutine main body
                         IF (RESER(I+1,J) .EQ. RES_DIRECT(K,1)) THEN
                             RES_DIRECT(K,3) =  NO_OF_BOX(RESORDER)
                             CALL CALCULATE_DISTANCE(I,J,ICOL,IROW,NCOL,NROW,DIREC,TRVLTIME,
-     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ)
+     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ,NUMRES)
                         END IF
                     END DO
                 END IF
@@ -589,7 +593,7 @@ c       Subroutine main body
                         IF (RESER(I,J-1) .EQ. RES_DIRECT(K,1)) THEN
                             RES_DIRECT(K,3) =  NO_OF_BOX(RESORDER)
                             CALL CALCULATE_DISTANCE(I,J,ICOL,IROW,NCOL,NROW,DIREC,TRVLTIME,
-     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ)
+     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ,NUMRES)
                         END IF
                     END DO
                 END IF
@@ -599,7 +603,7 @@ c       Subroutine main body
                         IF (RESER(I,J+1) .EQ. RES_DIRECT(K,1)) THEN
                             RES_DIRECT(K,3) =  NO_OF_BOX(RESORDER)
                             CALL CALCULATE_DISTANCE(I,J,ICOL,IROW,NCOL,NROW,DIREC,TRVLTIME,
-     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ)
+     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ,NUMRES)
                         END IF
                     END DO
                 END IF
@@ -609,7 +613,7 @@ c       Subroutine main body
                         IF (RESER(I-1,J-1) .EQ. RES_DIRECT(K,1)) THEN
                             RES_DIRECT(K,3) =  NO_OF_BOX(RESORDER)
                             CALL CALCULATE_DISTANCE(I,J,ICOL,IROW,NCOL,NROW,DIREC,TRVLTIME,
-     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ)
+     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ,NUMRES)
                         END IF
                     END DO
                 END IF
@@ -619,7 +623,7 @@ c       Subroutine main body
                         IF (RESER(I-1,J+1) .EQ. RES_DIRECT(K,1)) THEN
                             RES_DIRECT(K,3) =  NO_OF_BOX(RESORDER)	
                             CALL CALCULATE_DISTANCE(I,J,ICOL,IROW,NCOL,NROW,DIREC,TRVLTIME,
-     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ)
+     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ,NUMRES)
                         END IF
                     END DO
                 END IF
@@ -629,7 +633,7 @@ c       Subroutine main body
                         IF (RESER(I+1,J-1) .EQ. RES_DIRECT(K,1)) THEN
                             RES_DIRECT(K,3) =  NO_OF_BOX(RESORDER)
                             CALL CALCULATE_DISTANCE(I,J,ICOL,IROW,NCOL,NROW,DIREC,TRVLTIME,
-     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ)
+     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ,NUMRES)
                         END IF
                     END DO
                 END IF
@@ -639,7 +643,7 @@ c       Subroutine main body
                         IF (RESER(I+1,J+1) .EQ. RES_DIRECT(K,1)) THEN
                             RES_DIRECT(K,3) =  NO_OF_BOX(RESORDER)
                             CALL CALCULATE_DISTANCE(I,J,ICOL,IROW,NCOL,NROW,DIREC,TRVLTIME,
-     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ)
+     &                      RESORDER,RESER,FINAL,NORESERVOIRS,SIZE_CELL,VELO,FI,FJ,NUMRES)
                         END IF
                     END DO
                 END IF
@@ -682,395 +686,441 @@ C*******************************************************************************
 
         SUBROUTINE MAKE_CONVOLUTIONRS
      & (RPATH, RESER, NCOL, NROW, NO_OF_BOX, PMAX, DAYS, CATCHIJ,
-     &  BASE, RUNO, FLOW, KE, UH_DAY, UH_S, FRACTION, FACTOR_SUM,
+     &  BASE, RUNO, FLOW, KE, UH_DAY, FRACTION, FACTOR_SUM,
      &  XC, YC, SIZE, DPREC, INPATH,ICOL,NDAY,IDAY,IMONTH,IYEAR, START_YEAR,START_MO,
      &  MO, YR, NYR, VOL, FLOWIN, FLOWOUT, HHO, ENERGYPRO, HTK, DIREC, IROW,
-     &  XNE, YNE, NO_STAS, RES_DIRECT, RES_EVAPORATION, TRVLTIME)
+     &  XNE, YNE, NO_STAS, RES_DIRECT, RES_EVAPORATION, TRVLTIME,RESORDER,NAMERS5,NAME5,NREACH,UH_SS,VRESER,NUMRES, NSTATIONS)
         IMPLICIT NONE
 c       Declare variables
-        INTEGER     N, DAYS, NDAY, START_YEAR,START_MO
+        INTEGER     N, DAYS, NDAY, START_YEAR,START_MO,NREACH,NUMRES, NSTATIONS
         INTEGER     NCOL,NROW,ICOL,PMAX,KE,UH_DAY
-        INTEGER     CATCHIJ(PMAX,2,200)
+        INTEGER     CATCHIJ(PMAX,2,NUMRES,NREACH)
         INTEGER     NYR
         INTEGER     RESER(NCOL,NROW)
         INTEGER     IDAY(DAYS), IMONTH(DAYS), IYEAR(DAYS)
         INTEGER     MO(12*NYR),YR(12*NYR)
         INTEGER     DIREC(NCOL,NROW,2)
-        INTEGER     RES_DIRECT(200,3)
-        INTEGER     YEAR(200,DAYS),MONTH(200,DAYS),DAY(200,DAYS)
-        INTEGER     OPEYEAR(200)
+        INTEGER     RES_DIRECT(NUMRES,3,NREACH)
+        INTEGER     YEAR(NUMRES,DAYS),MONTH(NUMRES,DAYS),DAY(NUMRES,DAYS)
+        INTEGER     OPEYEAR(NUMRES,NREACH)
         INTEGER     IROW, CURRENTYEAR
-        INTEGER     NO_OF_BOX(200)
-        INTEGER     XNE, YNE
-        INTEGER     I, J, K, L, NO_STAS, CAL_MONTH
-        INTEGER     NO_OF_ROW(200)
-        INTEGER     RULE(200), WITHIRRIGATION(200)
-        INTEGER     STARTDAY(200)
-        INTEGER     DPREC, RESORDER, NOOFROW, CRTDATE
-        REAL        UH_S(PMAX,KE+UH_DAY-1,200)
-        REAL        TRVLTIME(200)
-        REAL        BASE(DAYS), RUNO(DAYS), FLOW(DAYS)
+        INTEGER     NO_OF_BOX(NUMRES,NREACH)
+        INTEGER     XNE(NREACH), YNE(NREACH)
+        INTEGER     NO_STAS(NREACH)
+        INTEGER     I, J, K, L, CAL_MONTH, W, x
+        INTEGER     NO_OF_ROW(NUMRES,NREACH)
+        INTEGER     RULE(NUMRES,NREACH), WITHIRRIGATION(NUMRES,NREACH)
+        INTEGER     STARTDAY(NUMRES,NREACH)
+        INTEGER     DPREC, RESORDER(NREACH,NUMRES), NOOFROW(NREACH), CRTDATE,RESORD(NREACH)
+        REAL        UH_SS(PMAX,KE+UH_DAY-1,NUMRES)
+        REAL        TRVLTIME(NUMRES)
+        REAL        BASE(DAYS,NREACH), RUNO(DAYS,NREACH)
+        REAL        FLOW(DAYS,NREACH)
         REAL        FRACTION(NCOL,NROW)
         REAL        PI, RERD, FACTOR, FACTOR_SUM
-        REAL        CURRENTWL, DESIGNWL
-        REAL        RES_EVAPORATION(200,DAYS)
-        REAL        XC, YC, SIZE
-        REAL        VOL(200,DAYS), FLOWIN(200,DAYS), FLOWOUT(200,DAYS)
-        REAL        HHO(200,DAYS), ENERGYPRO(200,DAYS), HTK(200,DAYS)
-        REAL        HMAX(200), HMIN(200)
-        REAL        RESFLOWS(200,DAYS) 
-        REAL        HRESERMAX(200), HRESERMIN(200), VINITIAL(200), H0(200)
-        REAL        QRESER(200),VRESER(200),REALHEAD(200),VRESERTHAT(200),VDEAD(200),  VOLSERIES(200,DAYS)
-        REAL        QRESERTHAT(200), HYDRAUHEAD(200)
-        REAL        OP1(200,2) ! rule curve
-        REAL        OP2(200,DAYS) ! pre-defined time series data
-        REAL        X1(200), X2(200), X3(200), X4(200)	! operating rule
-        REAL        SEEPAGE(200), INFILTRATION(200), Demand(200)
+        REAL        CURRENTWL(NREACH), DESIGNWL(NREACH)
+        REAL        RES_EVAPORATION(NUMRES,DAYS)
+        REAL        XC, YC, SIZE, TEMP
+        REAL        VOL(NUMRES,DAYS,NREACH), FLOWIN(NUMRES,DAYS), FLOWOUT(NUMRES,DAYS,NREACH)
+        REAL        HHO(NUMRES,DAYS), ENERGYPRO(NUMRES,DAYS), HTK(NUMRES,DAYS)
+        REAL        HMAX(NUMRES,NREACH), HMIN(NUMRES,NREACH)
+        REAL        RESFLOWS(NUMRES,DAYS,NREACH) 
+        REAL        HRESERMAX(NUMRES,NREACH), HRESERMIN(NUMRES,NREACH), VINITIAL(NUMRES,NREACH), H0(NUMRES,NREACH)
+        REAL        QRESER(NUMRES,NREACH),VRESER(NUMRES,NREACH,DAYS),REALHEAD(NUMRES,NREACH),VRESERTHAT(NUMRES,NREACH),VDEAD(NUMRES,NREACH)
+        REAL        QRESERTHAT(NUMRES,NREACH), HYDRAUHEAD(NUMRES,NREACH)
+        REAL        OP1(NUMRES,2,NREACH) ! rule curve
+        REAL        OP2(NUMRES,DAYS) ! pre-defined time series data
+        REAL        X1(NUMRES,NREACH), X2(NUMRES,NREACH), X3(NUMRES,NREACH), X4(NUMRES,NREACH)	! operating rule
+        REAL        SEEPAGE(NUMRES,NREACH), INFILTRATION(NUMRES,NREACH), Demand(NUMRES,NREACH)
         REAL        TEMPO
-        REAL        RESLV(200,12), OP5X1(200,12), OP5X2(200,12), OP5X3(200,12), OP5X4(200,12), DEMAND5(200,12)
-        REAL        IRRIGATION(200,DAYS)
-        REAL        KFACTOR
+        REAL        RESLV(NUMRES,12,NREACH), OP5X1(NUMRES,12,NREACH), OP5X2(NUMRES,12,NREACH), OP5X3(NUMRES,12,NREACH), OP5X4(NUMRES,12,NREACH), DEMAND5(NUMRES,12,NREACH)
+        REAL        IRRIGATION(NUMRES,DAYS)
+        REAL        KFACTOR(NREACH)
+        CHARACTER*10 WTEMP
+        CHARACTER*72 RESFLOWSTRING
         CHARACTER*72 RPATH
-        CHARACTER*72 IPATH
-        CHARACTER*100 TEMPRPATH,PATHRES3
+        CHARACTER*72 IPATH(NREACH)
+        CHARACTER*100 TEMPRPATH(NREACH)
+        CHARACTER*100 PATHRES3
         CHARACTER*72 INPATH
-        CHARACTER*20 CHUOI
-        CHARACTER*20 NAMERS
+        CHARACTER*20 CHUOI(NREACH)
+        CHARACTER*7  NAMERS5(NREACH,NUMRES)
+        CHARACTER*7  NAME5(NREACH)
         CHARACTER*100 FILENAME
-c       Subroutine main body
+
+c       Subroutine main body    
+
 c       Look for reservoirs sequences
         CURRENTYEAR = START_YEAR
-        DO N = 1,NO_STAS
-            print*, 'Working on reservoir no...',RES_DIRECT(N,1)
-            CALL MAKE_CONVOLUTION
-     &         (RPATH,RESER,NCOL, NROW, NO_OF_BOX, PMAX, DAYS,
-     &          CATCHIJ, BASE, RUNO, FLOW, KE, UH_DAY, UH_S, FRACTION,
-     &          FACTOR_SUM,XC,YC,SIZE,DPREC,INPATH,ICOL,NDAY,
-     &          IDAY,IMONTH,IYEAR, START_YEAR, START_MO, MO, YR, NYR, VOL,
-     &          FLOWIN, FLOWOUT, HHO, RESFLOWS,N,RES_DIRECT(N,1),RES_EVAPORATION, NO_STAS)
-        END DO
-c       Initiate reservoir parameters
-        DO I = 1, NDAY
-            DO J = 1, NO_STAS-1
-                FLOWIN(J,I) = 0
-                FLOWOUT(J,I) = 0
-                VOL(J,I) = 0
-                ENERGYPRO(J,I) = 0
-                HTK(J,I) = 0
+        print*,'reading grid from files uh_s'
+        
+        DO W=1,NSTATIONS
+            DO J = 1,NO_STAS(W)-1
+                  
+                  OPEN(98, file = trim(adjustl(NAMERS5(W,RESORDER(W,J))))//'.uh_s', status='old')
+                  DO N = 1,NO_OF_BOX(RESORDER(W,J),W)
+                        PRINT*,NO_OF_BOX(RESORDER(W,J),W)
+                        READ(98, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)  
+                  ENDDO
+                  CLOSE(98) 
+            ENDDO
+            J=NO_STAS(W)
+            print*, W, J,RESORDER(W,J), NAME5(W)
+            OPEN(98, file = trim(adjustl(NAME5(W)))//'.uh_s', status='old')
+            DO N= 1,NO_OF_BOX(RESORDER(W,J),W)
+                READ(98, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)
+            ENDDO
+            CLOSE(98)
+            DO N = 1,NO_STAS(W)
+                print*, 'Working on reservoir no...',RES_DIRECT(N,1,W)
+                CALL MAKE_CONVOLUTION
+     &              (RPATH,RESER,NCOL, NROW, NO_OF_BOX(:,W), PMAX, DAYS,
+     &              CATCHIJ(:,:,:,W), BASE(:,W), RUNO(:,W), FLOW(:,W), KE, UH_SS, UH_DAY, FRACTION,
+     &              FACTOR_SUM,XC,YC,SIZE,DPREC,INPATH,ICOL,NDAY,
+     &              IDAY,IMONTH,IYEAR, START_YEAR, START_MO, MO, YR, NYR, VOL(:,:,W),
+     &              FLOWIN, FLOWOUT(:,:,W), HHO, RESFLOWS(:,:,W),N,RES_DIRECT(N,1,W),RES_EVAPORATION, NO_STAS(W),NUMRES)
+                
             END DO
-        END DO
-        DO  J  = 1, NO_STAS-1
-            WRITE(CHUOI,*) RES_DIRECT(J,1)
-            TEMPRPATH = trim(RPATH)//"res"//trim(ADJUSTL(CHUOI))//".txt"
-            OPEN(25, FILE = TEMPRPATH,FORM = 'FORMATTED',
-     &      STATUS='OLD',ERR=9002)
-            READ(25,*)  
-            READ(25,*) HRESERMAX(J),HRESERMIN(J),VRESERTHAT(J),VDEAD(J),
-     &      HYDRAUHEAD(J), QRESERTHAT(J), OPEYEAR(J), VINITIAL(J)
-            KFACTOR = SQRT(VDEAD(J)/VRESERTHAT(J))							! calculate the bottom level of reservoir
-            H0(J) = (KFACTOR*HRESERMAX(J) - HRESERMIN(J))/(KFACTOR-1)		! pyramid shape reservoir
-            READ(25,*)
-            READ(25,*) SEEPAGE(J), INFILTRATION(J)
-            READ(25,*)
-            READ(25,*) WITHIRRIGATION(J)
-            READ(25,'(A)') IPATH
-            READ(25,*)
-            IF (WITHIRRIGATION(J) .EQ. 0) THEN
-                DO L = 1, DAYS-1
-                    IRRIGATION(J,L) = 0
+            WRITE(WTEMP, 10) W
+ 10         FORMAT(I4)
+            RESFLOWSTRING = trim(trim('RF'//trim(ADJUSTL(WTEMP)))//'.txt')
+C           SAVE RESFLOWS TO READ THEM LATER
+        
+           open(71, file=RESFLOWSTRING, status='unknown')
+           DO N = 1,NO_STAS(W)
+                WRITE(71, *) (RESFLOWS(N,K,W), K = 1,NDAY)
+           END DO
+           close(71)
+c           READ RESFLOWS
+            open(72, file=RESFLOWSTRING, status='old')
+
+            DO N = 1, NO_STAS(W)
+                READ(72, *) (RESFLOWS(N,K,W), K = 1, NDAY)
+            END DO
+
+
+            close(72)                
+            !print*,RESFLOWS(20,1,W)
+c       Initiate reservoir parameters
+            DO I = 1, NDAY
+                DO J = 1, NO_STAS(W)-1
+                    FLOWIN(J,I) = 0
+                    FLOWOUT(J,I,W) = 0
+                    VOL(J,I,W) = 0
+                    ENERGYPRO(J,I) = 0
+                    HTK(J,I) = 0
                 END DO
-            ELSE IF (WITHIRRIGATION(J) .EQ. 1) THEN
-                OPEN(27, FILE = IPATH,FORM = 'FORMATTED',STATUS='OLD',ERR=9003)
-                READ(27,*)
-                READ(27,*) NOOFROW
-                READ(27,*)
-                DO L = 1, NOOFROW
-                    READ(27,*) IRRIGATION(J,L)
-                END DO
-                CLOSE(27)
-            END IF
-            READ(25,*) RULE(J)
-            IF (RULE(J) .EQ. 1) THEN ! simplified rule curve
-                READ(25,*) HMAX(J), HMIN(J), OP1(J,1),OP1(J,2)
-            ELSE IF (RULE(J) .EQ. 2) THEN ! rule curve
-                READ(25,*) RESLV(J,1), RESLV(J,2), RESLV(J,3), RESLV(J,4), RESLV(J,5), RESLV(J,6),
-     &          RESLV(J,7), RESLV(J,8), RESLV(J,9), RESLV(J,10), RESLV(J,11), RESLV(J,12)
-            ELSE IF (RULE(J) .EQ. 3) THEN ! operating rule
-                READ(25,*) Demand(J), X1(J), X2(J), X3(J), X4(J)
-            ELSE IF (RULE(J) .EQ. 4) THEN! predefined time-series
-                READ(25,'(/A)')FILENAME
-                PATHRES3 = trim(ADJUSTL(FILENAME))
-                OPEN(26, FILE = PATHRES3,FORM = 'FORMATTED',STATUS='OLD',ERR=9002)
-                READ(26,*) NO_OF_ROW(J) 						! Read the number of rows of reservoir J th
-                DO L = 1, NO_OF_ROW(J)
-                    READ(26,*) YEAR(J,L), MONTH(J,L), DAY(J,L), OP2(J,L)
-                    IF ((YEAR(J,L) .EQ. START_YEAR) .AND. (MONTH(J,L) .EQ. START_MO) .AND. (DAY(J,L) .EQ. 1)) THEN
-                        STARTDAY(J) = L							! If the time-series is shorter than the simulation period (release = 0)
-                    END IF
-                END DO
-                CLOSE(26)
-            ELSE IF (RULE(J) .EQ. 6) THEN
-                READ(25,*) NOOFROW
-                DO L = 1, NOOFROW
-                    READ(25,*) VOLSERIES(J,L)
-                END DO
-            ELSE IF (RULE(J) .EQ. 5) THEN
-                DO L = 1, 12
-                    READ(25,*) DEMAND5(J,L), OP5X1(J,L), OP5X2(J,L), OP5X3(J,L), OP5X4(J,L)
-                END DO
-            END IF
-            CLOSE(25)
-            IF (CURRENTYEAR>=OPEYEAR(J)) THEN
-                VOL(J,1) = VINITIAL(J)
-            ELSE 
-                VOL(J,1) = 0.001
-            END IF
-        END DO
-        DO I = 1, NDAY
-            DO J = 1, NO_STAS-1
-                CURRENTYEAR = START_YEAR + INT(I/365)		! approximate, does not consider leap years
-            IF (CURRENTYEAR>=OPEYEAR(J)) THEN
-                VRESER(J) = VRESERTHAT(J)+VDEAD(J)
-                REALHEAD(J) = HYDRAUHEAD(J)
-                QRESER(J) = QRESERTHAT(J)
-            ELSE
-                VRESER(J) = 0.001
-                REALHEAD(J) = 0.001
-                QRESER(J) = 999999
-            END IF
-            FLOWIN(J,I) = RESFLOWS(J,I)
-c           Calculate the designed water level
-c           Note RULE = 1: simplified rule curve - 2: rule curve - 3: operating rules: - 4 pre-defined time-series data - 5 12 month operating rule
-            CRTDATE = INT(1.0* mod(I,365)+(START_MO-1)*30)						! approximate
-            IF ((RULE(J) .EQ. 1) .or. (RULE(J) .EQ. 2)) THEN   ! (Options 1 and 2: rule curves)
-                IF (CURRENTYEAR<OPEYEAR(J)) THEN
-                    FLOWOUT(J,I) = FLOWIN(J,I)
-                    VOL(J,I+1) = VOL(J,I)
-                    GOTO 123
+            END DO
+            DO  J  = 1, NO_STAS(W)-1
+                WRITE(CHUOI(W),*) RES_DIRECT(J,1,W)
+                TEMPRPATH(W) = trim(RPATH)//"res"//trim(ADJUSTL(CHUOI(W)))//".txt"
+                OPEN(25, FILE = TEMPRPATH(W),FORM = 'FORMATTED',
+     &          STATUS='OLD',ERR=9002)
+                READ(25,*)  
+                READ(25,*) HRESERMAX(J,W),HRESERMIN(J,W),VRESERTHAT(J,W),VDEAD(J,W),
+     &          HYDRAUHEAD(J,W), QRESERTHAT(J,W), OPEYEAR(J,W), VINITIAL(J,W)
+                KFACTOR(W) = SQRT(VDEAD(J,W)/VRESERTHAT(J,W))							! calculate the bottom level of reservoir
+                H0(J,W) = (KFACTOR(W)*HRESERMAX(J,W) - HRESERMIN(J,W))/(KFACTOR(W)-1)		! pyramid shape reservoir
+c                H0(J,W) = (HRESERMAX(J,W)-HRESERMIN(J,W)*(VRESERTHAT(J,W)+VDEAD(J,W))/VDEAD(J,W))/(1-(VRESERTHAT(J,W)+VDEAD(J,W))/VDEAD(J,W))    !This actually performs better, but we will wix the problem of H0 with reservoirs bathimetry
+                READ(25,*)
+                READ(25,*) SEEPAGE(J,W), INFILTRATION(J,W)
+                READ(25,*)
+                READ(25,*) WITHIRRIGATION(J,W)
+                READ(25,'(A)') IPATH(W)
+                READ(25,*)
+                IF (WITHIRRIGATION(J,W) .EQ. 0) THEN
+                    DO L = 1, DAYS-1
+                        IRRIGATION(J,L) = 0
+                    END DO
+                ELSE IF (WITHIRRIGATION(J,W) .EQ. 1) THEN
+                    OPEN(27, FILE = IPATH(W),FORM = 'FORMATTED',STATUS='OLD',ERR=9003)
+                    READ(27,*)
+                    READ(27,*) NOOFROW(W)
+                    READ(27,*)
+                    DO L = 1, NOOFROW(W)
+                        READ(27,*) IRRIGATION(J,L)
+                    END DO
+                    CLOSE(27)
                 END IF
-                IF (RULE(J) .EQ. 1) THEN
-                    IF (OP1(J,1)>OP1(J,2)) THEN
+                READ(25,*) RULE(J,W)
+                IF (RULE(J,W) .EQ. 1) THEN ! simplified rule curve
+                    READ(25,*) HMAX(J,W), HMIN(J,W), OP1(J,1,W),OP1(J,2,W)
+                    IF (HMAX(J,W) .LT. HMIN(J,W)) THEN
+                        TEMP=HMAX(J,W)
+                        HMAX(J,W)=HMIN(J,W)
+                        HMIN(J,W)=TEMP
+                    END IF
+                ELSE IF (RULE(J,W) .EQ. 2) THEN ! rule curve
+                    READ(25,*) RESLV(J,1,W), RESLV(J,2,W), RESLV(J,3,W), RESLV(J,4,W), RESLV(J,5,W), RESLV(J,6,W),
+     &              RESLV(J,7,W), RESLV(J,8,W), RESLV(J,9,W), RESLV(J,10,W), RESLV(J,11,W), RESLV(J,12,W)
+                ELSE IF (RULE(J,W) .EQ. 3) THEN ! operating rule
+                    READ(25,*) Demand(J,W), X1(J,W), X2(J,W), X3(J,W), X4(J,W)
+                ELSE IF (RULE(J,W) .EQ. 4) THEN! predefined time-series
+                    READ(25,'(/A)')FILENAME
+                    PATHRES3 = trim(ADJUSTL(FILENAME))
+                    OPEN(26, FILE = PATHRES3,FORM = 'FORMATTED',STATUS='OLD',ERR=9002)
+                    READ(26,*) NO_OF_ROW(J,W) 						! Read the number of rows of reservoir J th
+                    DO L = 1, NO_OF_ROW(J,W)
+                        READ(26,*) YEAR(J,L), MONTH(J,L), DAY(J,L), OP2(J,L)
+                        IF ((YEAR(J,L) .EQ. START_YEAR) .AND. (MONTH(J,L) .EQ. START_MO) .AND. (DAY(J,L) .EQ. 1)) THEN
+                            STARTDAY(J,W) = L							! If the time-series is shorter than the simulation period (release = 0)
+                        END IF
+                    END DO
+                    CLOSE(26)
+                ELSE IF (RULE(J,W) .EQ. 5) THEN
+                    DO L = 1, 12
+                        READ(25,*) DEMAND5(J,L,W), OP5X1(J,L,W), OP5X2(J,L,W), OP5X3(J,L,W), OP5X4(J,L,W)
+                    END DO
+                END IF
+                CLOSE(25)
+                IF (CURRENTYEAR>=OPEYEAR(J,W)) THEN
+                    VOL(J,1,W) = VINITIAL(J,W)
+                ELSE 
+                    VOL(J,1,W) = 0.001
+                END IF
+            END DO
+        ENDDO
+        DO I = 1, NDAY
+            DO W=1, NSTATIONS
+                DO J = 1, NO_STAS(W)-1
+                    CURRENTYEAR = START_YEAR + INT(I/365)		! approximate, does not consider leap years
+                IF (CURRENTYEAR>=OPEYEAR(J,W)) THEN
+                    VRESER(J,W,I) = VRESERTHAT(J,W)+VDEAD(J,W)
+                    REALHEAD(J,W) = HYDRAUHEAD(J,W)
+                    QRESER(J,W) = QRESERTHAT(J,W)
+                ELSE
+                    VRESER(J,W,I) = 0.001
+                    REALHEAD(J,W) = 0.001
+                    QRESER(J,W) = 999999
+                END IF
+                FLOWIN(J,I) = RESFLOWS(J,I,W)
+c               Calculate the designed water level
+c               Note RULE = 1: simplified rule curve - 2: rule curve - 3: operating rules: - 4 pre-defined time-series data - 5 12 month operating rule
+                CRTDATE = INT(1.0* mod(I,365)+(START_MO-1)*30)						! approximate
+                IF ((RULE(J,W) .EQ. 1) .or. (RULE(J,W) .EQ. 2)) THEN   ! (Options 1 and 2: rule curves)
+                    IF (CURRENTYEAR<OPEYEAR(J,W)) THEN
+                        FLOWOUT(J,I,W) = FLOWIN(J,I)
+                        VOL(J,I+1,W) = VOL(J,I,W)
+                        GOTO 123
+                    END IF
+                    IF (RULE(J,W) .EQ. 1) THEN
+                        IF (OP1(J,1,W)>OP1(J,2,W)) THEN
                     ! Caculate target water level
-                        IF ((CRTDATE .GT. OP1(J,2)) .and. (CRTDATE .LT. OP1(J,1))) THEN
-                           DESIGNWL=(CRTDATE-OP1(J,2))/(OP1(J,1)-OP1(J,2))
-     &                      *(HMAX(J)-HMIN(J))
-                        ELSE IF (CRTDATE .GE. OP1(J,1)) THEN 
-                           DESIGNWL=(HMAX(J)-HMIN(J))
-     &                     -(CRTDATE-OP1(J,1))/(365-OP1(J,1)+OP1(J,2))*
-     &                     (HMAX(J)-HMIN(J))
+                        IF ((CRTDATE .GT. OP1(J,2,W)) .and. (CRTDATE .LT. OP1(J,1,W))) THEN
+                           DESIGNWL(W)=(CRTDATE-OP1(J,2,W))/(OP1(J,1,W)-OP1(J,2,W))
+     &                      *(HMAX(J,W)-HMIN(J,W))
+                        ELSE IF (CRTDATE .GE. OP1(J,1,W)) THEN 
+                           DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))
+     &                     -(CRTDATE-OP1(J,1,W))/(365-OP1(J,1,W)+OP1(J,2,W))*
+     &                     (HMAX(J,W)-HMIN(J,W))
                         ELSE
-                            DESIGNWL=(HMAX(J)-HMIN(J))
-     &                          -(CRTDATE+365-OP1(J,1))/(365-OP1(J,1)+OP1(J,2))*
-     &                          (HMAX(J)-HMIN(J))
+                            DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))
+     &                          -(CRTDATE+365-OP1(J,1,W))/(365-OP1(J,1,W)+OP1(J,2,W))*
+     &                          (HMAX(J,W)-HMIN(J,W))
                         END IF
                     ELSE
-                        IF ((CRTDATE .GT. OP1(J,1)) .and. (CRTDATE .LT. OP1(J,2))) THEN
-                           DESIGNWL=(HMAX(J)-HMIN(J))-(CRTDATE-OP1(J,1))/(OP1(J,2)-OP1(J,1))
-     &                      *(HMAX(J)-HMIN(J))
-                        ELSE IF (CRTDATE .GE. OP1(J,2)) THEN 
-                           DESIGNWL=(HMAX(J)-HMIN(J))/(365-OP1(J,2)+OP1(J,1))*(CRTDATE-OP1(J,2))
+                        IF ((CRTDATE .GT. OP1(J,1,W)) .and. (CRTDATE .LT. OP1(J,2,W))) THEN
+                           DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))-(CRTDATE-OP1(J,1,W))/(OP1(J,2,W)-OP1(J,1,W))
+     &                      *(HMAX(J,W)-HMIN(J,W))
+                        ELSE IF (CRTDATE .GE. OP1(J,2,W)) THEN 
+                           DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))/(365-OP1(J,2,W)+OP1(J,1,W))*(CRTDATE-OP1(J,2,W))
                         ELSE 
-                            DESIGNWL=(HMAX(J)-HMIN(J))/(365-OP1(J,2)+OP1(J,1))*
-     &                     (CRTDATE-OP1(J,1))
+                            DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))/(365-OP1(J,2,W)+OP1(J,1,W))*
+     &                      (CRTDATE-OP1(J,1,W))+(HMAX(J,W)-HMIN(J,W))
+                        END IF
+
+                    END IF
+                    DESIGNWL(W) = DESIGNWL(W) + (HMIN(J,W) - H0(J,W))
+                    ELSE
+                        DESIGNWL(W) = RESLV(J,CAL_MONTH(CRTDATE),W)
+                        DESIGNWL(W) = DESIGNWL(W) - H0(J,W)
+                    END IF
+                    HTK(J,I) = DESIGNWL(W) + H0(J,W)													! water head
+                    CURRENTWL(W) = VOL(J,I,W) * (HRESERMAX(J,W)-H0(J,W))/VRESER(J,W,I)
+                    IF (CURRENTWL(W)>=DESIGNWL(W)) THEN											! Zone 3
+                        IF ((VOL(J,I,W)+FLOWIN(J,I)*24*3.6 -QRESER(J,W)*24*3.6)						! Case 2
+     &                  >(DESIGNWL(W)* VRESER(J,W,I)) /(HRESERMAX(J,W)-H0(J,W))) THEN
+                            VOL(J,I+1,W) = VOL(J,I,W) + FLOWIN(J,I)*24*3.6-QRESER(J,W)*24*3.6
+                            FLOWOUT(J,I,W) = QRESER(J,W)
+                            
+                        ELSE																	! Case 1
+                            VOL(J,I+1,W)=(DESIGNWL(W)*VRESER(J,W,I))/(HRESERMAX(J,W)-H0(J,W))
+                            FLOWOUT(J,I,W)=(VOL(J,I,W)-VOL(J,I+1,W))/24/3.6 + FLOWIN(J,I)
+                        END IF
+                        
+                        GOTO 123
+                    ELSE																		! Zone 2
+                        IF ((VOL(J,I,W)+FLOWIN(J,I)*24*3.6)>((DESIGNWL(W)* VRESER(J,W,I))				! Case 2
+     &                  /(HRESERMAX(J,W)-H0(J,W)))) THEN
+                            VOL(J,I+1,W)=(DESIGNWL(W) * VRESER(J,W,I))/(HRESERMAX(J,W)-H0(J,W))
+                            FLOWOUT(J,I,W)=FLOWIN(J,I)-(VOL(J,I+1,W)-VOL(J,I,W))/24/3.6
+                            IF (FLOWOUT(J,I,W)>QRESER(J,W)) THEN
+                                VOL(J,I+1,W)=VOL(J,I+1,W)+(FLOWOUT(J,I,W)-QRESER(J,W))*24*3.6
+                                FLOWOUT(J,I,W) = QRESER(J,W)
+                            END IF
+                            GOTO 123
+                        ELSE																	! Case 1 (this case covers Zone 1 + Zone 2 case 1)
+                            VOL(J,I+1,W) = VOL(J,I,W) + FLOWIN(J,I)*24*3.6
+                            FLOWOUT(J,I,W) = 0
+                            GOTO 123
                         END IF
                     END IF
-                    DESIGNWL = DESIGNWL + (HMIN(J) - H0(J))
-                ELSE
-                    DESIGNWL = RESLV(J,CAL_MONTH(CRTDATE))
-                    DESIGNWL = DESIGNWL - H0(J)
-                END IF
-            HTK(J,I) = DESIGNWL + H0(J)													! water head
-            CURRENTWL = VOL(J,I) * (HRESERMAX(J)-H0(J))/VRESER(J)
-            IF (CURRENTWL>=DESIGNWL) THEN												! Zone 3
-                IF ((VOL(J,I)+FLOWIN(J,I)*24*3.6 -QRESER(J)*24*3.6)						! Case 2
-     &          >(DESIGNWL* VRESER(J)) /(HRESERMAX(J)-H0(J))) THEN
-                    VOL(J,I+1) = VOL(J,I) + FLOWIN(J,I)*24*3.6-QRESER(J)*24*3.6
-                    FLOWOUT(J,I) = QRESER(J)
-c                    VOL(J,I+1)=(DESIGNWL*VRESER(J))/(HRESERMAX(J)-H0(J))                                        !to be checked: unnecessary/wrong calculation
-                ELSE																	! Case 1
-                    VOL(J,I+1)=(DESIGNWL*VRESER(J))/(HRESERMAX(J)-H0(J))
-                    FLOWOUT(J,I)=(VOL(J,I)-VOL(J,I+1))/24/3.6 + FLOWIN(J,I)
-                END IF
-                GOTO 123
-            ELSE																		! Zone 2
-                IF ((VOL(J,I)+FLOWIN(J,I)*24*3.6)>((DESIGNWL* VRESER(J))				! Case 2
-     &           /(HRESERMAX(J)-H0(J)))) THEN
-                    VOL(J,I+1)=(DESIGNWL * VRESER(J))/(HRESERMAX(J)-H0(J))
-                    FLOWOUT(J,I)=FLOWIN(J,I)-(VOL(J,I+1)-VOL(J,I))/24/3.6
-                    IF (FLOWOUT(J,I)>QRESER(J)) THEN
-                        VOL(J,I+1)=VOL(J,I+1)+(FLOWOUT(J,I)-QRESER(J))*24*3.6
-                        FLOWOUT(J,I) = QRESER(J)
-                    END IF
-                    GOTO 123
-                ELSE																	! Case 1 (this case covers Zone 1 + Zone 2 case 1)
-                    VOL(J,I+1) = VOL(J,I) + FLOWIN(J,I)*24*3.6
-                    GOTO 123
-                END IF
-            END IF
-        ELSE IF (RULE(J) .EQ. 3) THEN ! opearting rule (Option 3)
+                ELSE IF (RULE(J,W) .EQ. 3) THEN ! opearting rule (Option 3)
         ! Note x1 and x4 in radian (0 to pi/2), not degree
-            IF (VOL(J,I) < VDEAD(J)) THEN ! below dead water level
-                FLOWOUT(J,I) = 0																					! case 1
-            ELSE IF (VOL(J,I) .LE. X2(J)) THEN ! hedging
-                IF ((VOL(J,I)-VDEAD(J)+FLOWIN(J,I)*24*3.6) .LE. (Demand(J)+(VOL(J,I)-X2(J))*tan(X1(J))*24*3.6)) THEN		! discharge more than the water amount in reservoir (case 2)
-                    FLOWOUT(J,I) = (VOL(J,I)-VDEAD(J))/24/3.6+FLOWIN(J,I)											! discharge all of water in the reservoir
-                ELSE	! (case 3)
-                    FLOWOUT(J,I) = Demand(J)+(VOL(J,I)-X2(J))*tan(X1(J))
-                END IF
-            ELSE IF (VOL(J,I).GE. X3(J)) THEN 	! spilling
-                IF ((Demand(J) + (VOL(J,I)-X3(J))*tan(X4(J)))*24*3.6>(VOL(J,I))-VDEAD(J)) THEN		! discharge more than the water in reservoir (just to make sure)
-                    FLOWOUT(J,I) = (VOL(J,I)-VDEAD(J))/24/3.6										! discharge all of water in the reservoir
-                ELSE IF ((Demand(J) + (VOL(J,I)-X3(J))*tan(X4(J)))>QRESER(J)) THEN
-                    FLOWOUT(J,I) = QRESER(J)
-                ELSE	 ! case 5
-                    FLOWOUT(J,I) = Demand(J) + (VOL(J,I)-X3(J))*tan(X4(J))
-                END IF
-            ELSE ! releasing
-                IF (Demand(J)*24*3.6>(VOL(J,I)-VDEAD(J))) THEN
-                    FLOWOUT(J,I) = (VOL(J,I)-VDEAD(J))/24/3.6
-                ELSE
-                    FLOWOUT(J,I) = Demand(J)			! case 4
-                END IF
-            END IF
-            IF (FLOWOUT(J,I)>QRESER(J)) THEN			! double check just in case users chose unrealistic x1 and x4
-                FLOWOUT(J,I) = QRESER(J)
-            END IF
-            VOL(J,I+1) = VOL(J,I) + (FLOWIN(J,I)-FLOWOUT(J,I))*24*3.6
-            GOTO 123
-        ELSE IF (RULE(J) .EQ. 4) THEN! pre-defined time series (Option 4)
-            IF ((OP2(J,I+STARTDAY(J)) .GT. QRESER(J)) .AND. (VOL(J,I) .LT. VRESER(J))) THEN
-                OP2(J,I+STARTDAY(J)) = QRESER(J)
-            END IF
-            IF (OP2(J,I+STARTDAY(J))*24*3.6 .GT. ((VOL(J,I)-VDEAD(J)))+FLOWIN(J,I)*24*3.6) THEN
-                FLOWOUT(J,I) = (VOL(J,I)-VDEAD(J))/24/3.6 + FLOWIN(J,I)
-            ELSE
-                FLOWOUT(J,I) = OP2(J,I+STARTDAY(J))
-            END IF
-            VOL(J,I+1) = VOL(J,I) + (FLOWIN(J,I)-FLOWOUT(J,I))*24*3.6
-            GOTO 123
-        ELSE IF (RULE(J) .EQ. 5) THEN ! note: this option is similar to OP3 but for a periodic demand
+                    IF (VOL(J,I,W) < VDEAD(J,W)) THEN ! below dead water level
+                        FLOWOUT(J,I,W) = 0																					! case 1
+                    ELSE IF (VOL(J,I,W) .LE. X2(J,W)) THEN ! hedging
+                        IF ((VOL(J,I,W)-VDEAD(J,W)+FLOWIN(J,I)*24*3.6) .LE. (Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))*24*3.6)) THEN		! discharge more than the water amount in reservoir (case 2)
+                            FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6+FLOWIN(J,I)											! discharge all of water in the reservoir
+                        ELSE	! (case 3)
+                            FLOWOUT(J,I,W) = Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))
+                        END IF
+                    ELSE IF (VOL(J,I,W).GE. X3(J,W)) THEN 	! spilling
+                        IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))*24*3.6>(VOL(J,I,W))-VDEAD(J,W)) THEN		! discharge more than the water in reservoir (just to make sure)
+                            FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6										! discharge all of water in the reservoir
+                        ELSE IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))>QRESER(J,W)) THEN
+                            FLOWOUT(J,I,W) = QRESER(J,W)
+                        ELSE	 ! case 5
+                            FLOWOUT(J,I,W) = Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W))
+                        END IF
+                    ELSE ! releasing
+                        IF (Demand(J,W)*24*3.6>(VOL(J,I,W)-VDEAD(J,W))) THEN
+                            FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6
+                        ELSE
+                            FLOWOUT(J,I,W) = Demand(J,W)			! case 4
+                        END IF
+                    END IF
+                    IF (FLOWOUT(J,I,W)>QRESER(J,W)) THEN			! double check just in case users chose unrealistic x1 and x4
+                        FLOWOUT(J,I,W) = QRESER(J,W)
+                    END IF
+                    VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I)-FLOWOUT(J,I,W))*24*3.6
+                    GOTO 123
+                ELSE IF (RULE(J,W) .EQ. 4) THEN! pre-defined time series (Option 4)
+                    IF ((OP2(J,I+STARTDAY(J,W)) .GT. QRESER(J,W)) .AND. (VOL(J,I,W) .LT. VRESER(J,W,I))) THEN
+                        OP2(J,I+STARTDAY(J,W)) = QRESER(J,W)
+                    END IF
+                    IF (OP2(J,I+STARTDAY(J,W))*24*3.6 .GT. ((VOL(J,I,W)-VDEAD(J,W)))+FLOWIN(J,I)*24*3.6) THEN
+                        FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6 + FLOWIN(J,I)
+                    ELSE
+                        FLOWOUT(J,I,W) = OP2(J,I+STARTDAY(J,W))
+                    END IF
+                    VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I)-FLOWOUT(J,I,W))*24*3.6
+                    GOTO 123
+                ELSE IF (RULE(J,W) .EQ. 5) THEN ! note: this option is similar to OP3 but for a periodic demand
             ! Note x1 and x4 in radian (0 to pi/2), not degree, this part can be shorthen
-            X1(J) = OP5X1(J,CAL_MONTH(CRTDATE))
-            X2(J) = OP5X2(J,CAL_MONTH(CRTDATE))
-            X3(J) = OP5X3(J,CAL_MONTH(CRTDATE))
-            X4(J) = OP5X4(J,CAL_MONTH(CRTDATE))
-            Demand(J) = DEMAND5(J,CAL_MONTH(CRTDATE))
-            IF (VOL(J,I) < VDEAD(J)) THEN ! below dead water level
-                FLOWOUT(J,I) = 0																					! case 1
-            ELSE IF (VOL(J,I) .LE. X2(J)) THEN ! hedging
-                IF ((VOL(J,I)-VDEAD(J)+FLOWIN(J,I)*24*3.6) .LE. (Demand(J)+(VOL(J,I)-X2(J))*tan(X1(J))*24*3.6)) THEN		! discharge more than the water amount in reservoir (case 2)                    
-                    FLOWOUT(J,I) = (VOL(J,I)-VDEAD(J))/24/3.6+FLOWIN(J,I)											! discharge all of water in the reservoir
-                ELSE	! (case 3)
-                    FLOWOUT(J,I) = Demand(J)+(VOL(J,I)-X2(J))*tan(X1(J))
-                END IF
-            ELSE IF (VOL(J,I).GE. X3(J)) THEN 	! spilling
-                IF ((Demand(J) + (VOL(J,I)-X3(J))*tan(X4(J)))*24*3.6>(VOL(J,I))-VDEAD(J)) THEN		! discharge more than the water in reservoir (just to make sure)
-                    FLOWOUT(J,I) = (VOL(J,I)-VDEAD(J))/24/3.6										! discharge all of water in the reservoir
-                ELSE IF ((Demand(J) + (VOL(J,I)-X3(J))*tan(X4(J)))>QRESER(J)) THEN
-                    FLOWOUT(J,I) = QRESER(J)
-                ELSE	 ! case 5
-                    FLOWOUT(J,I) = Demand(J) + (VOL(J,I)-X3(J))*tan(X4(J))
-                END IF
-            ELSE ! releasing
-                IF (Demand(J)*24*3.6>(VOL(J,I)-VDEAD(J))) THEN
-                    FLOWOUT(J,I) = (VOL(J,I)-VDEAD(J))/24/3.6
-                ELSE
-                    FLOWOUT(J,I) = Demand(J)			! case 4
-                END IF
-            END IF
-            IF (FLOWOUT(J,I)>QRESER(J)) THEN			! double check just in case users chose unrealistic x1 and x4
-                FLOWOUT(J,I) = QRESER(J)
-            END IF
-            VOL(J,I+1) = VOL(J,I) + (FLOWIN(J,I)-FLOWOUT(J,I))*24*3.6
-            GOTO 123
-         ELSE IF (RULE(J) .EQ. 6) THEN
-                IF (FLOWIN(J,I)-(VOL(J,I+1)-VOL(J,I))/24/3.6 >0) THEN
-                    VOL(J,I+1) = VOLSERIES(J,I)
-                    FLOWOUT(J,I) = FLOWIN(J,I)-(VOL(J,I+1)-VOL(J,I))/24/3.6
-                ELSE
-                    FLOWOUT(J,I) = 0
-                    VOL(J,I+1) = VOL(J,I) + FLOWIN(J,I)*24*3.6
-                END IF
-            GOTO 123
- 123    END IF
+                    X1(J,W) = OP5X1(J,CAL_MONTH(CRTDATE),W)
+                    X2(J,W) = OP5X2(J,CAL_MONTH(CRTDATE),W)
+                    X3(J,W) = OP5X3(J,CAL_MONTH(CRTDATE),W)
+                    X4(J,W) = OP5X4(J,CAL_MONTH(CRTDATE),W)
+                    Demand(J,W) = DEMAND5(J,CAL_MONTH(CRTDATE),W)
+                    IF (VOL(J,I,W) < VDEAD(J,W)) THEN ! below dead water level
+                        FLOWOUT(J,I,W) = 0																					! case 1
+                    ELSE IF (VOL(J,I,W) .LE. X2(J,W)) THEN ! hedging
+                        IF ((VOL(J,I,W)-VDEAD(J,W)+FLOWIN(J,I)*24*3.6) .LE. (Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))*24*3.6)) THEN		! discharge more than the water amount in reservoir (case 2)                    
+                            FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6+FLOWIN(J,I)											! discharge all of water in the reservoir
+                        ELSE	! (case 3)
+                            FLOWOUT(J,I,W) = Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))
+                        END IF
+                    ELSE IF (VOL(J,I,W).GE. X3(J,W)) THEN 	! spilling
+                        IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))*24*3.6>(VOL(J,I,W))-VDEAD(J,W)) THEN		! discharge more than the water in reservoir (just to make sure)
+                            FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6										! discharge all of water in the reservoir
+                        ELSE IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))>QRESER(J,W)) THEN
+                            FLOWOUT(J,I,W) = QRESER(J,W)
+                        ELSE	 ! case 5
+                            FLOWOUT(J,I,W) = Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W))
+                        END IF
+                    ELSE ! releasing
+                        IF (Demand(J,W)*24*3.6>(VOL(J,I,W)-VDEAD(J,W))) THEN
+                            FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6
+                        ELSE
+                            FLOWOUT(J,I,W) = Demand(J,W)			! case 4
+                        END IF
+                    END IF
+                    IF (FLOWOUT(J,I,W)>QRESER(J,W)) THEN			! double check just in case users chose unrealistic x1 and x4
+                        FLOWOUT(J,I,W) = QRESER(J,W)
+                    END IF
+                    VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I)-FLOWOUT(J,I,W))*24*3.6
+                    GOTO 123
+ 123            END IF
         ! Check if there are any negative values
-        IF (ENERGYPRO(J,I)<0) THEN
-            ENERGYPRO(J,I)=0
-        END IF
-        IF (FLOWOUT(J,I)<0) THEN
-            FLOWOUT(J,I)=0
-        END IF
-        IF (VOL(J,I)<0)THEN ! Not allow dropping below the minimum water level (mostly due to evaporation)
-            VOL(J,I)=0
-        END IF
-c       Remote water for irrigation
-        IF (FLOWOUT(J,I)>=IRRIGATION(J,I)) THEN
-            FLOWOUT(J,I) = FLOWOUT(J,I) - IRRIGATION(J,I)
-        ELSE
-            FLOWOUT(J,I) = 0
-        END IF
+                IF (ENERGYPRO(J,I)<0) THEN
+                    ENERGYPRO(J,I)=0
+                END IF
+                IF (FLOWOUT(J,I,W)<0) THEN
+                    FLOWOUT(J,I,W)=0
+                END IF
+                IF (VOL(J,I,W)<0)THEN ! Not allow dropping below the minimum water level (mostly due to evaporation)
+                    VOL(J,I,W)=0
+                END IF
+c               Remote water for irrigation
+                IF (FLOWOUT(J,I,W)>=IRRIGATION(J,I)) THEN
+                    FLOWOUT(J,I,W) = FLOWOUT(J,I,W) - IRRIGATION(J,I)
+                ELSE
+                    FLOWOUT(J,I,W) = 0
+                END IF
         ! Calculate energy production
-        IF (VOL(J,I+1)<=VRESER(J)) THEN
-            ENERGYPRO(J,I) = 0.9 * 9.81 * FLOWOUT(J,I)
-        ELSE
-            ENERGYPRO(J,I) = 0.9 * 9.81 * QRESER(J)
-        END IF
+                IF (VOL(J,I+1,W)<=VRESER(J,W,I)) THEN
+                    ENERGYPRO(J,I) = 0.9 * 9.81 * FLOWOUT(J,I,W)
+                ELSE
+                    ENERGYPRO(J,I) = 0.9 * 9.81 * QRESER(J,W)
+                END IF
         !IF (J .EQ. 3) THEN
         !    WRITE(*,*) RES_DIRECT(J,1),' - ',ENERGYPRO(J,I),'  ',HHO(J,I),'  ',HHO(J,I+1),'  ',FLOWOUT(J,I),'  ',HRESERMAX(J),'  ',REALHEAD(J)
         !END IF
         ! Update water losses due to seepage and infiltration
         ! Infiltration is permanent losses + water seepage is added to outflow
         ! Note seepage occurs until there is no water left (considering dead volume also)
-        IF (VOL(J,I+1) - (SEEPAGE(J)+INFILTRATION(J))*24*3.6 .GT. 0) THEN
-            VOL(J,I+1) = VOL(J,I+1) - (SEEPAGE(J)+INFILTRATION(J))*24*3.6
+                
+                IF (VOL(J,I+1,W) - (SEEPAGE(J,W)+INFILTRATION(J,W))*24*3.6 .GT. 0) THEN
+                    VOL(J,I+1,W) = VOL(J,I+1,W) - (SEEPAGE(J,W)+INFILTRATION(J,W))*24*3.6
             !Note that seepage does not contribute to energy production, so we add here
-            FLOWOUT(J,I) = FLOWOUT(J,I) + SEEPAGE(J)
-        ELSE
-            VOL(J,I+1) = 0
-        END IF
-c       Check the neccesity to spill water
-        IF (VOL(J,I+1)>VRESER(J)) THEN
-            FLOWOUT(J,I) = FLOWOUT(J,I)+(VOL(J,I+1)-VRESER(J))/24/3.6
-            VOL(J,I+1) = VRESER(J)
-        END IF
-        HHO(J,I)=VOL(J,I)/VRESER(J)*(HRESERMAX(J)-H0(J))+H0(J)
-        HHO(J,I+1)=VOL(J,I+1)/VRESER(J)* (HRESERMAX(J)-H0(J))+H0(J)
-        ! Note: hydraulic head calculated from the maximum water level
-        ENERGYPRO(J,I) = ENERGYPRO(J,I) *
-     &  (( HHO(J,I)+HHO(J,I+1))/2-(HRESERMAX(J)-REALHEAD(J)))/1000			! this part is for hydropower production estimation, ignore if work with irrigation reservoirs
-        ! Propagate water to the downstream reservoir, considering the time lag
-        RESORDER = NO_STAS
-        DO K = 1, NO_STAS
-            IF ((RES_DIRECT(K,1) .EQ. RES_DIRECT(J,2))) THEN
-                RESORDER = K
-            END IF
-        END DO
-        IF (FLOWOUT(J,I) .LT. 0) THEN
-            FLOWOUT(J,I) = 0
-        END IF
-        IF (RES_DIRECT(J,2) .EQ. 0) THEN
-            RESFLOWS(NO_STAS,I+1+INT(TRVLTIME(J))) = RESFLOWS(NO_STAS,I+1+INT(TRVLTIME(J))) + FLOWOUT(J,I)
-        ELSE
-            RESFLOWS(RESORDER,I+1+INT(TRVLTIME(J))) = RESFLOWS(RESORDER,I+1+INT(TRVLTIME(J))) + FLOWOUT(J,I)
-        END IF
+                    FLOWOUT(J,I,W) = FLOWOUT(J,I,W) + SEEPAGE(J,W)
+                ELSE
+                    VOL(J,I+1,W) = 0
+                END IF
+                
+c               Check the neccesity to spill water
+                IF (VOL(J,I+1,W)>VRESER(J,W,I)) THEN
+                    FLOWOUT(J,I,W) = FLOWOUT(J,I,W)+(VOL(J,I+1,W)-VRESER(J,W,I))/24/3.6
+                    VOL(J,I+1,W) = VRESER(J,W,I)
+                END IF
+                HHO(J,I)=VOL(J,I,W)/VRESER(J,W,I)*(HRESERMAX(J,W)-H0(J,W))+H0(J,W)
+                HHO(J,I+1)=VOL(J,I+1,W)/VRESER(J,W,I)* (HRESERMAX(J,W)-H0(J,W))+H0(J,W)
+                ! Note: hydraulic head calculated from the maximum water level
+                ENERGYPRO(J,I) = ENERGYPRO(J,I) *
+     &          (( HHO(J,I)+HHO(J,I+1))/2-(HRESERMAX(J,W)-REALHEAD(J,W)))/1000			! this part is for hydropower production estimation, ignore if work with irrigation reservoirs
+                ! Propagate water to the downstream reservoir, considering the time lag
+                RESORD(W) = NO_STAS(W)
+                DO K = 1, NO_STAS(W)
+                    IF ((RES_DIRECT(K,1,W) .EQ. RES_DIRECT(J,2,W))) THEN
+                        RESORD(W) = K
+                    END IF
+                END DO
+                IF (FLOWOUT(J,I,W) .LT. 0) THEN
+                    FLOWOUT(J,I,W) = 0
+                END IF
+                IF (RES_DIRECT(J,2,W) .EQ. 0) THEN
+                    RESFLOWS(NO_STAS(W),I+1+INT(TRVLTIME(J)),W) = RESFLOWS(NO_STAS(W),I+1+INT(TRVLTIME(J)),W) + FLOWOUT(J,I,W)
+                ELSE
+                    RESFLOWS(RESORD(W),I+1+INT(TRVLTIME(J)),W) = RESFLOWS(RESORD(W),I+1+INT(TRVLTIME(J)),W) + FLOWOUT(J,I,W)
+                END IF
       !   WRITE(*,*) '-------------------------------------------------'
       !   WRITE(*,*) 'Hdesign ',HTK(J,I)
       !   WRITE(*,*) 'CRTDATE',CRTDATE,'Reservoir No.',J,' FLOWIN ',FLOWIN(J,I),
      &!  'FLOWOUT',FLOWOUT(J,I),' VOL ',VOL(J,I),' ELEC', ENERGYPRO(J,I)
-        END DO
-        IF (RESFLOWS(NO_STAS,I) .LT. 0) THEN
-             RESFLOWS(NO_STAS,I) = 0
-        END IF
-        FLOW(I) = RESFLOWS(NO_STAS,I)
-      END DO
-      RETURN
+                END DO
+                IF (RESFLOWS(NO_STAS(W),I,W) .LT. 0) THEN
+                     RESFLOWS(NO_STAS(W),I,W) = 0
+                END IF
+                FLOW(I,W) = RESFLOWS(NO_STAS(W),I,W)
+            ENDDO
+            ! At the end of this loop, we will have the discharge for each considered stations at time i, in FLOW(I,:)
+        ENDDO
+        RETURN
  9001 WRITE(*,*) 'Error reading UH data'
  9002 WRITE(*,*) 'Error in reading reservoir data'
  9003 WRITE(*,*) 'Error in reading irrigation data'
       END
-C     END OF FILE
-C************************************************************************************************************************************************************************************
-
 C************************************************************************************************************************************************************************************
 C       Convert from day to month
 C************************************************************************************************************************************************************************************
