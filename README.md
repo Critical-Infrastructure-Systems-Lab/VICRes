@@ -122,7 +122,7 @@ There are six operating strategies adopted in this software package
 * Option 3: Operating rule. The rule curve is defined via four parameters (x1, x2, x3 and x4).
 * Option 4: Predefined release time series data. Users must provide a link to a time series, containing daily release data over the simulation horizon. Although the time series data are provided, the real amount of water released is dependent on physical contraints of the reservoirs (e.g. maximum design discharge) as well as the available water.
 * Option 5: Operating rule. Similar to Option 3, but the operating rules can be different in every month (twelve operating rules for a year)
-* Option 6: Predefined reservoir volume time series data. Similar to Option 4, users must provide a link to a time series, containing daily volume data over the simulation perdiod. Although the time series data are provided, the real volume is dependent on the available water. 
+* Option 6: Predefined reservoir volume time series data. Similar to Option 4, users must provide a link to a time series, containing daily volume data over the simulation period. Although the time series data are provided, the real volume is dependent on the available water. 
 
 **C. How to customize other components (optimization, sensitivity analysis, and automatic calibration)**
 
