@@ -1,6 +1,6 @@
 # VIC-Res: Modeling and Optimizing Water Reservoir Operations in the Variable Infiltration Capacity Model
 
-The Variable Infiltration Capacity (VIC) model is a popular large-scale hydrological model developed and maintained by the University of Washington, US. VIC has been used extensively to study and model river basins around the world. The model simulates key hydrological processes occurring in a river basin (e.g., water and energy balances, streamflow routing), but does not account for the operations of artificial water reservoirs. Since the environmental impact of reservoirs comes under ever-increasing scrutiny, we developed a variant of VIC that allows to: 
+The Variable Infiltration Capacity (VIC) model is a popular large-scale hydrological model developed and maintained by the Computational Hydrology Research Group at the University of Washington. VIC has been used extensively to study and model river basins around the world. The model simulates key hydrological processes occurring in a river basin (e.g., water and energy balances, streamflow routing), but does not account for the operations of artificial water reservoirs. Since the environmental impact of reservoirs comes under ever-increasing scrutiny, we developed a variant of VIC that allows to: 
 
 * Account for the presence of artificial water reservoirs;
 * Optimize their operations; 
