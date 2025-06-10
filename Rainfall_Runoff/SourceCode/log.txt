@@ -1,1 +1,0 @@
-vicNl: command not found
