@@ -1,0 +1,42 @@
+# Routing main file
+# NAME OF FLOW DIRECTION FILE
+../parameters/flowdirection.txt
+# NAME OF VELOCITY FILE
+.false.
+1.2
+# NAME OF DIFF FILE
+.false.
+800
+# NAME OF XMASK FILE
+.false.
+12500
+# NAME OF FRACTION FILE
+.false.
+1.0
+# NAME OF STATION FILE
+../parameters/stations.txt
+# PATH OF INPUT FILES AND PRECISION
+../input/fluxes_
+4
+# PATH OF OUTPUT FILES
+../output/
+# RESERVOIR LOCATION
+../parameters/reservoirlocation.txt
+# RESERVOIR PARAMETERS
+../parameters/reservoirs/tmp/
+# NATURALIZED FLOW
+.false. 
+../parameters/naturalized_flow/ 
+# YEAR AND MONTH OF MODEL OUTPUT TO ROUTE & ROUTED OUTPUT TO WRITE         
+2000 1 2004 12 
+2000 1 2004 12 
+# NAME OF UNIT HYDROGRAPH FILE         
+../parameters/unit_hydrograph/
+# Simulation Mode: True: Run Step-by-Step Mode; False: Run all Steps
+.false.
+# Start Day and Current Simulation Day (for STEPBYSTEP Version)
+2000 1 1 2004 12 31
+# Coupler Iteration
+1
+# Write Outputs
+.true.
