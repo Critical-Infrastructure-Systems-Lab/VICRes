@@ -66,7 +66,9 @@ This function creates *optimization_objectives.txt* and *optimization_variables.
 
 Users can call *eFAST_analysis.py* or *EET_analysis.py*. These two functions fist create two sampling sets, which are saved  in the files called *eFASTparameters.txt* and *EETparameters.txt*. VIC-Res is then fed by the sampling sets. eFAST or EET provide either sensitivity indices (eFAST; in files *SiNSE.txt* and/or *SiTRMSE.txt*) or mean indices (EET; in files *miNSE.txt* and/or *miTRMSE.txt*).
 
-In the configuration file, users need to provide the following information:
+#### Required Input Files:
+
+In the configuration file (`EET_setup.txt` or `eFAST_setup.txt`), users need to provide the following information:
 
 * Simulation parameters: length of the simulation and spinning periods, and number of computer cores.
 * VIC model parameters: 0 (not to consider) and 1 (consider)
@@ -85,9 +87,17 @@ In the configuration file, users need to provide the following information:
 
 **D. How to run automatic calibration**
 
-The function automatic calibration is stored in *autocalibration.py*; its configuration file is named *reservoircalibration.txt*. The results are stored in *calibration_objectives.txt* and *calibration_variables.txt*.
+The automatic calibration is implemented using **multi-objective evolutionary algorithms** for two calibration strategies:
 
-The configuration is organized similarly to the sensitivity analysis configuration file. However, the parameters of the reservoir operating rules are not taken into account in this case.
+- **Basin-wide calibration**: `basin_calibration_eNSGAII.py`
+- **Zone-specific calibration**: `zone_calibration_eNSGAII.py`
+   
+#### Required Input Files:  
+
+- **Zone-wise classification of model grid cells:** `zone.txt`  
+- **Configuration settings:** `calibration_setup.txt`
+
+The configuration file (`calibration_setup.txt`) is organized similarly to the sensitivity analysis configuration file. However, the parameters of the reservoir operating rules are not taken into account in this case.
 
 As for the objective functions, users can choose among the Nash-Sutcliffe Efficiency (NSE), which measures the model accuracy primarily during high-flow periods; Box-Cox Transformed Root Mean Squared Error (TRMSE), which accounts for low-flow periods; Runoff COefficient Error (ROCE), which accounts for the long-term water balance; and Mean Squared Derivative Error (MSDE), an indicator of the fit of the hydrograph shape.
 
@@ -154,7 +164,7 @@ VIC-Res first development was supported by Singapore's Ministry of Education (Mo
 
 ### Contact
 
-For questions and feedback related to VIC-Res—and requests to fix possible bugs—please send an email to ssmahto.clim@gmail.com (Shanti Mahto) and hisham.eldardiry@cornell.edu (Hisham Eldardiry). Alternatively, you may reach out to galelli@cornell.edu (Stefano Galelli).
+For questions and feedback related to VIC-Res—and requests to fix possible bugs—please send an email to hisham.eldardiry@cornell.edu (Hisham Eldardiry). Alternatively, you may reach out to galelli@cornell.edu (Stefano Galelli).
 
 ### Citation
 
