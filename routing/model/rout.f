@@ -69,7 +69,7 @@ c-------------------------------------------------------------------------------
       INTEGER   CATCHIJ(PMAX,2,NRESER_MAX,NSTATIONS_MAX)
       INTEGER   H(NCOL,NROW)
       INTEGER   PI(NSTATIONS_MAX),PJ(NSTATIONS_MAX),NR(NSTATIONS_MAX),DS_RESID
-      INTEGER   PII,PJJ
+      INTEGER   PII,PJJ,II
       INTEGER   IROW,ICOL
       INTEGER   LP,M,Y,J,I,K,pp,uu,rr
       INTEGER   DPREC,FINAL
@@ -350,16 +350,8 @@ c-------------------------------------------------------------------------------
 c     STEP 5: Making Grid UH only for Reservoir Catchments (cells contributing to reservoirs and then to station under consideration)
 c------------------------------------------------------------------------------------------------------------------------------------------------------------------ 
             IF ((STEPBYSTEP .AND. ((NDAY_SIM.GT.1) .OR. (COUPLER_ITERATION.GT.1))) .OR. (NF_EXIST)) THEN
-                  print*, 'Running STEPBYSTEP Version...'
                   print*, 'No need to remake grid UH | Naturalized Flow is saved from previous run ...' ! only define name of reservoir-station (NAMERS5)
                   D=1    ! iterate only when the cell is a reservoir
-                  DO N = 1,NO_OF_BOX(NORESERVOIRS(I),I) ! loop over cells contributing to station
-                        IF ((RESER(CATCHIJ(N,1,NORESERVOIRS(I),I),CATCHIJ(N,2,NORESERVOIRS(I),I)).GT.0) .AND. (RESER(CATCHIJ(N,1,NORESERVOIRS(I),I),CATCHIJ(N,2,NORESERVOIRS(I),I)).NE.9999)) THEN	
-                              WRITE(NAMERS(I,D),*) RESER(CATCHIJ(N,1,NORESERVOIRS(I),I),CATCHIJ(N,2,NORESERVOIRS(I),I))
-                              NAMERS5(I,RESORDER(I,D)) = 'RES'//trim(adjustl(NAMERS(I,D)))//"_"//trim(adjustl(NAME5(I)))
-                              D=D+1  
-                        ENDIF            
-                  END DO
                   !READ RES_DIR
 10                FORMAT(I4)
                   WRITE(ITEMP, 10) I
@@ -370,6 +362,21 @@ c-------------------------------------------------------------------------------
                         READ(42, *) (RES_DIRECT(N,K,I), K = 1,3)
                   ENDDO
                   close(42)
+                  DO N = 1,NO_OF_BOX(NORESERVOIRS(I),I) ! loop over cells contributing to station
+                        IF ((RESER(CATCHIJ(N,1,NORESERVOIRS(I),I),CATCHIJ(N,2,NORESERVOIRS(I),I)).GT.0) .AND. (RESER(CATCHIJ(N,1,NORESERVOIRS(I),I),CATCHIJ(N,2,NORESERVOIRS(I),I)).NE.9999)) THEN
+                              ! find the reservoir order 
+                              RESORDER(I,D) = NORESERVOIRS(I)
+                              DO II = 1, (NORESERVOIRS(I)-1)    ! loop over reservoirs only [NORESERVOIRS is the last element which corresponds to the station under consideration]
+                                    IF (CATCHIJ(N,2,NORESERVOIRS(I),I) .EQ. RES_DIRECT(II,1,I)) THEN
+                                          RESORDER(I,D) = I
+                                    END IF
+                              END DO
+                              WRITE(NAMERS(I,D),*) RESER(CATCHIJ(N,1,NORESERVOIRS(I),I),CATCHIJ(N,2,NORESERVOIRS(I),I))
+                              NAMERS5(I,RESORDER(I,D)) = 'RES'//trim(adjustl(NAMERS(I,D)))//"_"//trim(adjustl(NAME5(I)))
+                              D=D+1  
+                        ENDIF            
+                  END DO
+                  
             ELSE      
                   print*, 'Making Grid UH for Reservoir Catchments...'
                   D=1  ! iterate only when the cell is a reservoir
