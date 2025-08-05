@@ -990,6 +990,9 @@ c-------------------------------------------------------------------------------
                 READ(25,*) ENV_FLOW(J,W)  ! Read the percentage of environmental flow (% of maximum flow)
                 READ(25,*)
                 READ(25,*) RULE(J,W)
+		IF (RULE(J,W) .EQ. 0) THEN ! run-of-the-river dam
+                        READ(25,*) Dummy
+	        END IF
                 IF (RULE(J,W) .EQ. 1) THEN ! simplified rule curve
                     READ(25,*) HMAX(J,W), HMIN(J,W), OP1(J,1,W),OP1(J,2,W)
                     IF (HMAX(J,W) .LT. HMIN(J,W)) THEN
@@ -1337,6 +1340,27 @@ c                   ! Check the neccesity to spill water
                     ELSE
                         ENERGYPRO(J,I,W) = ENERGYPRO(J,I,W) *((HHO(J,I,W)+HHO(J,I+1,W))/2-(HRESERMAX(J,W)-REALHEAD(J,W)))/1000			! this part is for hydropower production estimation, ignore if work with irrigation reservoirs   
                     END IF 
+
+  		    ! Check for minimum environmental flow
+		    IF (FLOWOUT(J,I,W) .LE. Qmin(J,I,W)) THEN
+			FLOWOUT(J,I,W) = Qmin(J,I,W)
+		    END IF 
+
+      		    ! Set Hydrologic Budget (States & Fluxes) for ROR Dams (Run-of-the-River)
+                    IF (RULE(J,W) .EQ. 0) THEN
+                        print*,'RUN-OF-THE-RIVER (ROR) DAM........'
+                        FLOWOUT(J,I,W) = FLOWIN(J,I,W)
+                        IF (FLOWOUT(J,I,W) .LE. Qmin(J,I,W)) THEN
+                            FLOWOUT(J,I,W) = Qmin(J,I,W)
+                        END IF
+                        FLOWOUT_TURB(J,I,W) = FLOWOUT(J,I,W)
+                        VOL(J,I+1,W) = VRESER(J,W,I)
+                        ENERGYPRO(J,I,W) = 0.9 * 9.81 * FLOWOUT(J,I,W)
+                        ENERGYPRO(J,I,W) = ENERGYPRO(J,I,W) *(REALHEAD(J,W))/1000
+                        HTK(J,I,W) = REALHEAD(J,W)
+                        HHO(J,I,W)= HRESERMAX(J,W)
+                        HHO(J,I+1,W)= HRESERMAX(J,W)
+                    END IF
 c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
 c     STEP 6: Propagate water to the downstream reservoir, considering the time lag
 c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -1351,11 +1375,7 @@ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
                         VRESER(J,W,I) = 0 
                         REALHEAD(J,W) = 0
                         QRESER(J,W) = 0
-                        FLOWOUT_TURB(J,I,W)=0.0  
-                    ELSE
-                        IF (FLOWOUT(J,I,W) .LE. Qmin(J,I,W)) THEN
-                            FLOWOUT(J,I,W) = Qmin(J,I,W)
-                        END IF   
+                        FLOWOUT_TURB(J,I,W)=0.0        
                     END IF
                     
                     ! Reading UH_R files for reservoirs
