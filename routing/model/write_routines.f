@@ -167,7 +167,7 @@ c     Subroutine main body
                   ENDIF            
             ENDIF
             ! Write to output file: reservoir data (level,inflow,storage,outflow, hydropower)
-            IF ((RULE .EQ. 1) .OR. (RULE .EQ. 2) .OR. (RULE .EQ. 3) .OR. (RULE .EQ. 5) .OR. (RULE .EQ. 6)) THEN
+            IF ((RULE .EQ. 0) .OR. (RULE .EQ. 1) .OR. (RULE .EQ. 2) .OR. (RULE .EQ. 3) .OR. (RULE .EQ. 5) .OR. (RULE .EQ. 6)) THEN
                   DO K = 1, STEPS
                         IF (FLOWOUT(I,K)>QRESER) THEN
                               QSPILL = FLOWOUT(I,K) - QRESER
