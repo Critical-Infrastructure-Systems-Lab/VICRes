@@ -1220,11 +1220,7 @@ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
                         IF (FLOWOUT(J,I,W)<0) THEN
                             FLOWOUT(J,I,W)=0
                         END IF
-                        IF (HYDROPOWER_GENERATOR(J,W) .EQ. 1) THEN
-                            FLOWOUT_TURB(J,I,W)=FLOWOUT(J,I,W)   ! forcing the turbine release to be equal to the provided release in operation strategy 4 (otherwise flowout is going through changes due to changes in storage; if storage is greater than scap)
-                        ELSE
-                            FLOWOUT_TURB(J,I,W)=0.0
-                        END IF    
+                        
                         VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W)-FLOWOUT(J,I,W))*24*3.6
                         GOTO 123
 c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
@@ -1286,33 +1282,38 @@ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
                     IF (ENERGYPRO(J,I,W)<0) THEN
                         ENERGYPRO(J,I,W)=0
                     END IF
-                    IF (FLOWOUT(J,I,W)<0) THEN
-                        FLOWOUT(J,I,W)=Qmin(J,I,W)
-                    END IF
-                    IF (VOL(J,I,W)<0)THEN ! Not allow dropping below the minimum water level (mostly due to evaporation)
+					IF (VOL(J,I,W)<0)THEN ! Not allow dropping below the minimum water level (mostly due to evaporation)
                         VOL(J,I,W)=0
                     END IF
+c                   ! Check the neccesity to spill water
+                    IF (VOL(J,I+1,W)>VRESER(J,W,I)) THEN
+                        FLOWOUT(J,I,W) = FLOWOUT(J,I,W)+(VOL(J,I+1,W)-VRESER(J,W,I))/24/3.6
+                        VOL(J,I+1,W) = VRESER(J,W,I)
+                    END IF
+
+	 				! Checking conditions for outflow 
+                    IF (FLOWOUT(J,I,W)<Qmin(J,I,W)) THEN    ! Check for minimum environmental flow
+                        FLOWOUT(J,I,W)=Qmin(J,I,W)
+                    END IF
+                    
 c                   Remote water for irrigation
                     IF (FLOWOUT(J,I,W)>=IRRIGATION(J,II)) THEN
                         FLOWOUT(J,I,W) = FLOWOUT(J,I,W) - IRRIGATION(J,II)
                     ELSE
                         FLOWOUT(J,I,W) = Qmin(J,I,W)
                     END IF
-                    
-                    
-                    ! Calculate energy production
-                    IF (VOL(J,I+1,W)<=VRESER(J,W,I)) THEN
-                        IF (RULE(J,W) .EQ. 4) THEN  ! Force the hydropower to follow the input release (even if VOL>VRESER)
-                            ENERGYPRO(J,I,W) = 0.9 * 9.81 * FLOWOUT_TURB(J,I,W)    
-                        ELSE    
-                            ENERGYPRO(J,I,W) = 0.9 * 9.81 * FLOWOUT(J,I,W)
-                        END IF 
+
+					! Checking conditions for turbine outflow
+                    IF (HYDROPOWER_GENERATOR(J,W) .EQ. 1) THEN
+                        FLOWOUT_TURB(J,I,W)=FLOWOUT(J,I,W)   ! forcing the turbine release to be equal to the provided release in operation strategy 4 (otherwise flowout is going through changes due to changes in storage; if storage is greater than scap)
                     ELSE
-                        IF (RULE(J,W) .EQ. 4) THEN  ! Force the hydropower to follow the input release (even if VOL>VRESER)
-                            ENERGYPRO(J,I,W) = 0.9 * 9.81 * FLOWOUT_TURB(J,I,W)   
-                        ELSE 
-                            ENERGYPRO(J,I,W) = 0.9 * 9.81 * QRESER(J,W)
-                        END IF    
+                        FLOWOUT_TURB(J,I,W)=0.0     ! If the turbine is not connected to generator (generator shutdown)
+                    END IF    
+					
+					IF (FLOWOUT(J,I,W)>=QRESER(J,W)) THEN  ! turbine + spillway flow
+                        FLOWOUT_TURB(J,I,W) = QRESER(J,W)
+                    ELSE
+                        FLOWOUT_TURB(J,I,W) = FLOWOUT(J,I,W)
                     END IF
                     
                     ! Update water losses due to seepage and infiltration
@@ -1327,24 +1328,13 @@ c                   Remote water for irrigation
                         VOL(J,I+1,W) = 0
                     END IF
                     
-c                   ! Check the neccesity to spill water
-                    IF (VOL(J,I+1,W)>VRESER(J,W,I)) THEN
-                        FLOWOUT(J,I,W) = FLOWOUT(J,I,W)+(VOL(J,I+1,W)-VRESER(J,W,I))/24/3.6
-                        VOL(J,I+1,W) = VRESER(J,W,I)
-                    END IF
+
                     HHO(J,I,W)=VOL(J,I,W)/VRESER(J,W,I)*(HRESERMAX(J,W)-H0(J,W))+H0(J,W)
                     HHO(J,I+1,W)=VOL(J,I+1,W)/VRESER(J,W,I)* (HRESERMAX(J,W)-H0(J,W))+H0(J,W)
                     ! Note: hydraulic head calculated from the maximum water level
-                    IF (HYDROPOWER_GENERATOR(J,W) .EQ. 0) THEN
-                        ENERGYPRO(J,I,W) = 0     ! If the turbine is not connected to generator (generator shutdown)
-                    ELSE
-                        ENERGYPRO(J,I,W) = ENERGYPRO(J,I,W) *((HHO(J,I,W)+HHO(J,I+1,W))/2-(HRESERMAX(J,W)-REALHEAD(J,W)))/1000			! this part is for hydropower production estimation, ignore if work with irrigation reservoirs   
-                    END IF 
-
-  		    ! Check for minimum environmental flow
-		    IF (FLOWOUT(J,I,W) .LE. Qmin(J,I,W)) THEN
-			FLOWOUT(J,I,W) = Qmin(J,I,W)
-		    END IF 
+                    ! Calculate energy production
+                    ENERGYPRO(J,I,W) = 0.9 * 9.81 * FLOWOUT_TURB(J,I,W)*((HHO(J,I,W)+HHO(J,I+1,W))/2-(HRESERMAX(J,W)-REALHEAD(J,W)))/1000  ! this part is for hydropower production estimation, ignore if work with irrigation reservoirs   
+  		    
 
       		    ! Set Hydrologic Budget (States & Fluxes) for ROR Dams (Run-of-the-River)
                     IF (RULE(J,W) .EQ. 0) THEN
