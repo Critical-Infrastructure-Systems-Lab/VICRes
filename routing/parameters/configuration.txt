@@ -15,27 +15,32 @@
 1.0
 # NAME OF STATION FILE
 ../parameters/stations.txt
+# NAME OF GRID LOCATION FILE
+.true.
+../parameters/grid_lat.txt
+../parameters/grid_lon.txt
 # PATH OF INPUT FILES AND PRECISION
 ../input/fluxes_
 4
+classic
 # PATH OF OUTPUT FILES
 ../output/
 # RESERVOIR LOCATION
 ../parameters/reservoirlocation.txt
 # RESERVOIR PARAMETERS
-../parameters/reservoirs/tmp/
+../parameters/reservoirs/res_par/
 # NATURALIZED FLOW
 .false. 
 ../parameters/naturalized_flow/ 
 # YEAR AND MONTH OF MODEL OUTPUT TO ROUTE & ROUTED OUTPUT TO WRITE         
-2000 1 2004 12 
-2000 1 2004 12 
+2000 1 2000 5 
+2000 1 2000 5 
 # NAME OF UNIT HYDROGRAPH FILE         
 ../parameters/unit_hydrograph/
 # Simulation Mode: True: Run Step-by-Step Mode; False: Run all Steps
 .false.
 # Start Day and Current Simulation Day (for STEPBYSTEP Version)
-2000 1 1 2004 12 31
+2000 1 1 2000 5 31
 # Coupler Iteration
 1
 # Write Outputs
