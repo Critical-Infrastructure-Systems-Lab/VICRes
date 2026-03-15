@@ -57,9 +57,10 @@ c-------------------------------------------------------------------------------
       REAL      AREA(NSTATIONS_MAX)
       REAL      FACTOR_SUM
       REAL      XC,YC,SIZE
-      REAL      FDUM
+      REAL      FDUM,FDUM_LAT,FDUM_LON
       REAL      VELO(NCOL,NROW), DIFF(NCOL,NROW)
       REAL      XMASK(NCOL,NROW), FRACTION(NCOL,NROW)
+      REAL      GRID_LAT(NCOL,NROW), GRID_LON(NCOL,NROW)
       REAL      BASE(DAYS,NSTATIONS_MAX), RUNO(DAYS,NSTATIONS_MAX), FLOW(DAYS,NSTATIONS_MAX)
       INTEGER   DIREC(NCOL,NROW,2),NF_CLEN
       INTEGER   IDAY(DAYS), IMONTH(DAYS), IYEAR(DAYS),IIDAY(DAYS),IIMONTH(DAYS), IIYEAR(DAYS)
@@ -75,11 +76,11 @@ c-------------------------------------------------------------------------------
       INTEGER   DPREC,FINAL
       INTEGER   NDAY,NDAY_SIM, CLEN
       INTEGER   NMONTHS
-      LOGICAL   TORF
+      LOGICAL   TORF,GRIDFILE_EXIST
       LOGICAL   STEPBYSTEP, WRITE_OUTPUT,NF_EXIST
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------
+c----------------------------------------------------------------
 C     Reservoir parameters
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------
+c----------------------------------------------------------------
       INTEGER   RESER(NCOL,NROW)          ! storing reservoir_location.txt file 
       INTEGER   NRESER                    ! actual number of reservoirs as read from the reservoirlocation.txt file 
       INTEGER   RESORDER(NSTATIONS_MAX,NRESER_MAX)  ! order of reservoir from US to DS as routing to the station under consideration 
@@ -91,19 +92,19 @@ c-------------------------------------------------------------------------------
       INTEGER   RES_DIRECT(NRESER_MAX,3,NSTATIONS_MAX)    ! Reservoir Direction Array has 3 Layers: #Layer 1 stores the reservoir id (from reservoir location file) if the reservoir contributes to the station (from SEARCH_WHOLECATCHMENT in init_routines.f). #Layer 2 stores the downstream reservoir contributing to the reservoir under consideration. #Layer 3 stores the number of cells (NO_OF_BOX) contributes to the reservoir under consideration   
       REAL      RES_EVAPORATION(NRESER_MAX,DAYS)
       REAL      TRVLTIME(NRESER_MAX,NSTATIONS_MAX)
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------      
+c----------------------------------------------------------------
 C     Filename
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------
+c----------------------------------------------------------------
       CHARACTER*21 NAME(NSTATIONS_MAX)
       CHARACTER*21  NAMERS51
       CHARACTER*21  NAMERS5(NSTATIONS_MAX,NRESER_MAX)
       CHARACTER*20 NAMERS(NSTATIONS_MAX,NRESER_MAX)
-      CHARACTER*10  NAME5(NSTATIONS_MAX),ITEMP
-      CHARACTER*72 FILE_INPUT,FILENAME,RFILENAME,RESDIRSTRING
+      CHARACTER*10  NAME5(NSTATIONS_MAX),ITEMP,VICDRIVER
+      CHARACTER*72 FILE_INPUT,FILENAME,RFILENAME,RESDIRSTRING,FILENAME_LAT,FILENAME_LON
       CHARACTER*200 INPATH,OUTPATH,RPATH,UH_PATH,NF_PATH
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------
+c----------------------------------------------------------------
 C     Variables for monthly means
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------
+c----------------------------------------------------------------
       INTEGER   DAYS_IN_MONTH(12)
       DATA      DAYS_IN_MONTH /31,28,31,30,31,30,31,31,30,31,30,31/
       INTEGER   START_YEAR,STOP_YEAR,FIRST_YEAR,LAST_YEAR
@@ -117,9 +118,9 @@ c-------------------------------------------------------------------------------
       NORESERVOIRS = 0    ! index of reservoir 
       NSTATIONS = 0
       
-C************************************************************************************************************************************************************************************
+C******************************************************************
 C     OPEN NECESSARY FILES
-C************************************************************************************************************************************************************************************
+C*****************************************************************
 c     Process commandline args
       IF(IARGC().NE.1)THEN
            PRINT*, 'USAGE:  rout <infile>'
@@ -140,6 +141,9 @@ c     Process velocity file
            READ(1,*) FDUM
            CALL INIT_ARRAY(VELO,NCOL,NROW,FDUM)
       ENDIF
+      !do j = 1,NROW
+      !    WRITE(*,*) (VELO(i,j),i=1,NCOL)
+      !end do
 c     Process diffusion file
       READ(1,*)
       READ(1,*)TORF
@@ -150,6 +154,9 @@ c     Process diffusion file
           READ(1,*) FDUM
           CALL INIT_ARRAY(DIFF,NCOL,NROW,FDUM)
       ENDIF
+      !do j = 1,NROW
+      !    WRITE(*,*) (DIFF(i,j),i=1,NCOL)
+      !end do
 c     Process xmask file
       READ(1,*)
       READ(1,*)TORF
@@ -173,9 +180,26 @@ c     Read fraction file
 c     Read station file
       READ(1,'(/A)')FILENAME
       OPEN(10,FILE=FILENAME)
+c     Read grid location file
+      READ(1,*)
+      READ(1,*) GRIDFILE_EXIST
+      IF (GRIDFILE_EXIST) THEN
+c     READ lon and lat from predefined location files            
+          READ(1,'(A)') FILENAME_LAT
+          READ(1,'(A)') FILENAME_LON
+          CALL READ_GRID_LOCATION(GRID_LAT,NCOL,NROW,FILENAME_LAT,IROW,ICOL)
+          CALL READ_GRID_LOCATION(GRID_LON,NCOL,NROW,FILENAME_LON,IROW,ICOL)
+      ELSE
+c     calculate lon and lat by using xlloorner, yllcorner, cellsize            
+          READ(1,*) FDUM_LAT
+          CALL INIT_ARRAY(GRID_LAT,NCOL,NROW,FDUM_LAT)
+          READ(1,*) FDUM_LON
+          CALL INIT_ARRAY(GRID_LON,NCOL,NROW,FDUM_LON)
+      ENDIF
 c     Read input path and precision of VIC filenames
       READ(1,'(/A)')INPATH
       READ(1,*)DPREC
+      READ(1,'(A)')VICDRIVER
 c     Read output pathname
       READ(1,'(/A)')OUTPATH
 c     Read input path of reservoir information
@@ -293,17 +317,17 @@ c     Check if writing outputs or not (important for step-by-step version when u
       ENDIF
 
       
-C************************************************************************************************************************************************************************************
+C******************************************************************
 C     START MODELLING
-C************************************************************************************************************************************************************************************
+C******************************************************************
 
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+c------------------------------------------------------------------
 c     STEP 1: Calculate impulse response function for grid cells
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+c-----------------------------------------------------------------
       CALL MAKE_UHM(UHM,VELO,DIFF,XMASK,NCOL,NROW,LE,DT,IROW,ICOL)
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+c----------------------------------------------------------------
 c     STEP 2: Read Station Info
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------                  
+c---------------------------------------------------------------
       I=1   ! loop over required stations
  100  CONTINUE
       READ(10,*,END=110) NR(I),NAME(I),PI(I),PJ(I),AREA(I)   ! Read stations.txt
@@ -318,9 +342,9 @@ c-------------------------------------------------------------------------------
             NAME5(I) = NAME(I)
             NSTATIONS=NSTATIONS+1                                 !At the end of the loop NSTATIONS will be equal to the actual number of considered stations
 
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+c----------------------------------------------------------------------
 c     STEP 3: Searching for Cells/Reservoirs contributing to Station
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+c---------------------------------------------------------------------
 c     Look for cells, contributing to the station                
             PII=PI(I)
             PJJ=PJ(I)
@@ -336,9 +360,9 @@ c     Look for cells, contributing to the station
             ! # NORESERVOIRS(I): number of reservoirs contributing to station
             ! # RES_DIRECT(:,:,I): the first layer of RES_DIRECT (:,1,I) storing the index (or the numbering) of contributing reservoirs (as read from the reservoirlocation.txt)          
 
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+c--------------------------------------------------------------------
 c     STEP 4: Reading Pre-Defined UH File (path in the configuration file)
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------   
+c-------------------------------------------------------------------
             print*, 'Reading grid unit hydrograph (UH)...'
 c           Read a pre-defined UH grid
             CLEN = INDEX(UH_PATH,' ')-1
@@ -346,9 +370,9 @@ c           Read a pre-defined UH grid
             CALL READ_GRID_UH
      &           (UH_BOX,KE,PMAX,NO_OF_BOX(:,I), CATCHIJ(:,:,:,I),FILENAME,NORESERVOIRS(I),NRESER_MAX)    ! reading UH file from ../../RoutingSetup/UH.all (defined in the configuration.txt)
 
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+c-------------------------------------------------------------------
 c     STEP 5: Making Grid UH only for Reservoir Catchments (cells contributing to reservoirs and then to station under consideration)
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------ 
+c-------------------------------------------------------------------
             IF ((STEPBYSTEP .AND. ((NDAY_SIM.GT.1) .OR. (COUPLER_ITERATION.GT.1))) .OR. (NF_EXIST)) THEN
                   print*, 'No need to remake grid UH | Naturalized Flow is saved from previous run ...' ! only define name of reservoir-station (NAMERS5)
                   D=1    ! iterate only when the cell is a reservoir
@@ -453,9 +477,9 @@ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       GOTO 100       ! Go back to line 100 (Step 2) for reading next station info                     
  110  CONTINUE
 
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+c-----------------------------------------------------------------------
 c     STEP 7: Flow generation for the required station (Convolution Method)
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------  
+c-----------------------------------------------------------------------
       print*, 'Making Convolution...'
       CALL MAKE_CONVOLUTIONRS
      &     (RPATH,RESER,NCOL, NROW, NO_OF_BOX, PMAX, DAYS,
@@ -463,16 +487,19 @@ c-------------------------------------------------------------------------------
      &     FACTOR_SUM,XC,YC,SIZE,DPREC,INPATH,ICOL,NDAY,
      &     IDAY,IMONTH,IYEAR, START_YEAR, START_MO, MO, YR, NYR, VOL,
      &     FLOWIN, FLOWOUT,FLOWOUT_TURB,HHO, ENERGYPRO,HTK,DIREC,IROW,
-     &     PI,PJ,NORESERVOIRS,RES_DIRECT,RES_EVAPORATION,TRVLTIME,RESORDER,NAMERS5,NAME5,NSTATIONS_MAX,UH_S,VRESER, NRESER_MAX, NSTATIONS,STEPBYSTEP,SIM_YEAR,NDAY_SIM,COUPLER_ITERATION,OUTPATH,UH_PATH,NF_PATH,NF_EXIST)   
+     &     PI,PJ,NORESERVOIRS,RES_DIRECT,RES_EVAPORATION,TRVLTIME,RESORDER,
+     &     NAMERS5,NAME5,NSTATIONS_MAX,UH_S,VRESER,NRESER_MAX,NSTATIONS,
+     &     STEPBYSTEP,SIM_YEAR,NDAY_SIM,COUPLER_ITERATION,OUTPATH,UH_PATH,NF_PATH,
+     &     NF_EXIST,GRIDFILE_EXIST, GRID_LAT, GRID_LON)   
 
 c Generate Dates if running with naturalized flow flag turdned on (since convolution will be skipped and therefore dates will not be read from the fluxes files)
         IF (NF_EXIST) THEN
                 CALL GENERATE_DATES(START_YEAR, START_MO,STOP_YEAR,STOP_MO, IYEAR, IMONTH, IDAY, NDAY,DAYS)
         ENDIF
 
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+c-----------------------------------------------------------------------
 c     STEP 8: Writing Data into Output Files
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------  
+c-----------------------------------------------------------------------
 c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx 
 c     STEP 8-1: Write Flow of all Stations in one output file (OUTPUT.day)
 c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx           

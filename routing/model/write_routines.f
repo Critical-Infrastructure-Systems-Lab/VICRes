@@ -127,7 +127,8 @@ c     Subroutine main body
             READ(25,*) IRRIGATION
             READ(25,*) IPATH
             READ(25,*)   ! HYDROPOWER header
-            READ(25,*)   ! HYDROPOWER value
+            READ(25,*)   ! HYDROPOWER Type value
+            READ(25,*)   ! HYDROPOWER Generator Status value
             READ(25,*)   ! Environmental Flow header
             READ(25,*)   ! Environmental Flow value
             READ(25,*)   ! Operation Strategy header
@@ -169,13 +170,14 @@ c     Subroutine main body
             ! Write to output file: reservoir data (level,inflow,storage,outflow, hydropower)
             IF ((RULE .EQ. 0) .OR. (RULE .EQ. 1) .OR. (RULE .EQ. 2) .OR. (RULE .EQ. 3) .OR. (RULE .EQ. 5) .OR. (RULE .EQ. 6)) THEN
                   DO K = 1, STEPS
-                        IF (FLOWOUT(I,K)>QRESER) THEN
-                              QSPILL = FLOWOUT(I,K) - QRESER
-                              QTUR = QRESER
+                        IF (STEPBYSTEP) THEN
+                              QTUR = FLOWOUT_TURB(I,NDAY_SIM)
+                              QSPILL=FLOWOUT(I,NDAY_SIM)-FLOWOUT_TURB(I,NDAY_SIM)
                         ELSE
-                              QSPILL = 0
-                              QTUR = FLOWOUT(I,K)
+                              QTUR = FLOWOUT_TURB(I,K)
+                              QSPILL=FLOWOUT(I,K)-FLOWOUT_TURB(I,K)
                         END IF
+
                         IF (VOL(I,K)<0) THEN
                               VOL(I,K) = 0
                         END IF
@@ -193,15 +195,20 @@ c     Subroutine main body
                         END IF
                         
                         IF (STEPBYSTEP) THEN
-                              WRITE(40,*) SIM_YEAR, SIM_MON, SIM_DAY, VOL(I,K), VOL(I,K+1), VRESER(I,K), HHO(I,K), HHO(I,K+1), FLOWIN(I,K), FLOWOUT(I,K), QTUR, HYDROPOWER(I,K) !This function also writes the maximum storage capacity (VRESER), writing hydropower output in the 7th column (important for optimization.py)
+                              WRITE(40,*) SIM_YEAR, SIM_MON, SIM_DAY, VOL(I,K), VOL(I,K+1), VRESER(I,K), HHO(I,K), HHO(I,K+1), FLOWIN(I,K), FLOWOUT(I,NDAY_SIM), QTUR, HYDROPOWER(I,K) !This function also writes the maximum storage capacity (VRESER), writing hydropower output in the 7th column (important for optimization.py)
                         ELSE
                               WRITE(40,*) IYEAR(K),IMONTH(K),IDAY(K), VOL(I,K), VOL(I,K+1), VRESER(I,K), HHO(I,K), HHO(I,K+1), FLOWIN(I,K), FLOWOUT(I,K), QTUR, HYDROPOWER(I,K) !This function also writes the maximum storage capacity (VRESER), writing hydropower output in the 7th column (important for optimization.py)
                         ENDIF       
                   END DO
             ELSE  !Operation Strategy 4
                   DO K = 1, STEPS
-                        QTUR = FLOWOUT_TURB(I,K)
-                        QSPILL=FLOWOUT(I,K)-FLOWOUT_TURB(I,K)
+                        IF (STEPBYSTEP) THEN
+                              QTUR = FLOWOUT_TURB(I,NDAY_SIM)
+                              QSPILL=FLOWOUT(I,NDAY_SIM)-FLOWOUT_TURB(I,NDAY_SIM)
+                        ELSE
+                              QTUR = FLOWOUT_TURB(I,K)
+                              QSPILL=FLOWOUT(I,K)-FLOWOUT_TURB(I,K)
+                        END IF
                         IF (VOL(I,K)<0) THEN
                               VOL(I,K) = 0
                         END IF
@@ -219,7 +226,7 @@ c     Subroutine main body
                         END IF
 
                         IF (STEPBYSTEP) THEN
-                              WRITE(40,*) SIM_YEAR, SIM_MON, SIM_DAY, VOL(I,K), VOL(I,K+1), VRESER(I,K), HHO(I,K), HHO(I,K+1), FLOWIN(I,K), FLOWOUT(I,K), QTUR, HYDROPOWER(I,K)
+                              WRITE(40,*) SIM_YEAR, SIM_MON, SIM_DAY, VOL(I,K), VOL(I,K+1), VRESER(I,K), HHO(I,K), HHO(I,K+1), FLOWIN(I,K), FLOWOUT(I,NDAY_SIM), QTUR, HYDROPOWER(I,K)
                         ELSE
                               WRITE(40,*) IYEAR(K),IMONTH(K),IDAY(K), VOL(I,K), VOL(I,K+1), VRESER(I,K), HHO(I,K),HHO(I,K+1), FLOWIN(I,K), FLOWOUT(I,K), QTUR, HYDROPOWER(I,K)
                         ENDIF

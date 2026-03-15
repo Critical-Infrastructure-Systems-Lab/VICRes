@@ -14,7 +14,7 @@ c       Declare variables
 c       Subroutine main body
         print*,'READING DIFFUSIVITY FROM FILE:', FILENAME    
         OPEN(10, FILE = FILENAME,FORM = 'FORMATTED',STATUS='OLD',ERR=9001)
-        DO I = 1,6													! Read file, skip header
+        DO I = 1,6	! Read file, skip header
             READ(10,*)
         END DO
         DO J = IROW,1,-1
@@ -87,7 +87,7 @@ c       Declare variables
 c       Subroutine main body
         print*,'READING VELOCITY FROM FILE:', FILENAME    
         OPEN(10, FILE = FILENAME,FORM = 'FORMATTED',STATUS='OLD', ERR=9001)
-        DO I = 1,6												! Read file, skip header 
+        DO I = 1,6		! Read file, skip header 
             READ(10,*)
         END DO
         DO J = IROW,1,-1
@@ -124,6 +124,26 @@ c       Subroutine main body
         END
 
 C************************************************************************************************************************************************************************************
+C       Read predefined grid location files 
+C************************************************************************************************************************************************************************************
+        SUBROUTINE READ_GRID_LOCATION(GRID,NCOL,NROW,FILENAME,IROW,ICOL)
+c       Declare variables
+        INTEGER NCOL,NROW,ICOL,IROW,I,J
+        REAL GRID(NCOL,NROW)
+        CHARACTER*72, FILENAME
+c       Subroutine main body
+        OPEN(23, FILE = FILENAME,FORM = 'FORMATTED',STATUS='OLD',ERR=9001)
+        DO J = IROW,1,-1
+            READ(23,*, END=20) (GRID(I,J), I=ICOL,1,-1)
+        END DO
+        CLOSE(23)
+        RETURN
+ 20     WRITE(*,*) 'ERROR: Not match size of required array'
+ 9001   WRITE(*,*) 'CANNOT OPEN GRID LOCATION INPUT FILE'
+        STOP
+        END
+        
+C************************************************************************************************************************************************************************************
 C       Read flow direction file
 C************************************************************************************************************************************************************************************
         SUBROUTINE READ_DIREC(DIREC,NCOL,NROW,H,XC,YC,SIZE,FILENAME,IROW,ICOL)
@@ -137,11 +157,11 @@ c       Declare variables
         CHARACTER*14 CDUM
 c       Subroutine main body
         OPEN(10, FILE = FILENAME, FORM = 'FORMATTED',STATUS='OLD',ERR=9001)
-        READ(10,*) CDUM, ICOL											! number of columms (flow direction matrix)
-        READ(10,*) CDUM, IROW											! number of rows
+        READ(10,*) CDUM, ICOL  ! number of columms (flow direction matrix)
+        READ(10,*) CDUM, IROW  ! number of rows
         READ(10,*) CDUM, XC
         READ(10,*) CDUM, YC
-        READ(10,*) CDUM, SIZE											! cell size
+        READ(10,*) CDUM, SIZE  ! cell size
         READ(10,*) CDUM, IMISS
         IF(IROW.GT.NROW .OR. ICOL.GT.NCOL)THEN
             WRITE(*,*) 'Incorrect dimensions:'
@@ -149,12 +169,11 @@ c       Subroutine main body
             STOP
         ENDIF
         DO J = IROW,1,-1
-            
             READ(10,*) (H(I,J), I=ICOL,1,-1)
         END DO
         CLOSE(10)
 C       Convert flow direction from 1 - 8 into grid-based cells
-        DO I = 1, ICOL												! convert the flow direction matrix
+        DO I = 1, ICOL  ! convert the flow direction matrix
             DO J = 1,IROW
                 IF (H(I,J) .EQ. 0) THEN
                     DIREC(I,J,1) = 0
@@ -198,7 +217,9 @@ C*******************************************************************************
      &      (RPATH,RESER,NCOL, NROW, NO_OF_BOX, PMAX, DAYS, CATCHIJ,
      &      BASE, RUNO, FLOW, KE, UH_S, UH_DAY, FRACTION, FACTOR_SUM,
      &      XC, YC, SIZE, DPREC, INPATH,ICOL,NDAY,IDAY,IMONTH,IYEAR, START_YEAR, START_MO,
-     &      MO, YR, NYR, VOL, FLOWIN, FLOWOUT, HHO, RESFLOWS, NO, resn, RES_EVAPORATION, NORESERVOIRS, NRESER_MAX)
+     &      MO, YR, NYR, VOL, FLOWIN, FLOWOUT, HHO, RESFLOWS, NO, resn,
+     &      RES_EVAPORATION, NORESERVOIRS, NRESER_MAX, GRIDFILE_EXIST, GRID_LAT,
+     &      GRID_LON)
 
         IMPLICIT NONE
 c       Declare variables
@@ -219,6 +240,7 @@ c       Declare variables
         REAL        UH_S(PMAX,KE+UH_DAY-1,NRESER_MAX)
         REAL        BASE(DAYS), RUNO(DAYS), FLOW(DAYS), AIRTEMP(DAYS), WINDS(DAYS), RHD(DAYS)
         REAL        FRACTION(NCOL,NROW)
+        REAL        GRID_LAT(NCOL,NROW), GRID_LON(NCOL,NROW)
         REAL        VRESER(NRESER_MAX), QRESER(NRESER_MAX)
         REAL        HRESERMAX(NRESER_MAX), HRESERMIN(NRESER_MAX)
         REAL        V0, FLOWINN
@@ -238,11 +260,11 @@ c       Declare variables
         REAL        weightingmatrix(45), eamatrix(43), deltaTa4matrix(23)
         REAL        temp, ea, deltaTa4, ed, wind
         REAL        vic_eva_vege(DAYS), vic_trans_vege(DAYS), vic_eva_soil(DAYS)
-        LOGICAL      TORF
+        LOGICAL      TORF,GRIDFILE_EXIST
         CHARACTER*20 RESNO
         CHARACTER*72 RPATH
         CHARACTER*100 TEMPRPATH
-        CHARACTER*20 LOC
+        CHARACTER*20 LOC,VICDRIVE
         CHARACTER*72 INPATH
         CHARACTER*5 NAMES
         PARAMETER   (RERD  = 6371229.0)  											!radius of earth in meters
@@ -299,6 +321,7 @@ C       Ra matrix (mm day-1) for the Penman formula
             CLOSE(26)
         END IF
         ! Added to avoid using values from previous time step when having headwater cell (no upstream cells and so no convolution needed) [HD July 2024]
+        !open(91,                                                     FILE = '/home/fs01/yl3984/VICRes/routing/parameters/naturalized_flow/NF999.txt',status='unknown')
         IF (NO_OF_BOX(NO).EQ.0) THEN
             print*,'Headwater Cell or Souce Cell: No Upstream Cells....'
             print*, 'No Convolution Needed...'
@@ -316,6 +339,14 @@ C       Ra matrix (mm day-1) for the Penman formula
 !       Calculate the area of each cell        
         DO N = 1,NO_OF_BOX(NO) 
             DO I = 1,NDAY
+                !IF (flow(I)>100) THEN
+                !    WRITE(*,*) 'flow01:',I,flow(I),N
+                !END IF
+            END DO
+            DO I = 1,NDAY
+                !IF (flow(I)>100) THEN
+                !    WRITE(*,*) 'flow0:',I,flow(I)
+                !END IF
                 RUNO(I) = 0.0
                 BASE(I) = 0.0
             END DO
@@ -323,14 +354,21 @@ C       Ra matrix (mm day-1) for the Penman formula
             JJ = CATCHIJ(N,2,NO)
 !       the grid has been flipped left to right
 !       find the revised cooordinates
-            ILOC=XC + (ICOL-II)*SIZE + SIZE/2.0
-            JLOC=YC + JJ*SIZE - SIZE/2.0
+            IF (GRIDFILE_EXIST) THEN
+!               read location from grid_lat.txt and grid_lon.txt                    
+                ILOC = GRID_LON(II,JJ)
+                JLOC = GRID_LAT(II,JJ)
+            ELSE
+!               calculate grid location
+                ILOC=XC + (ICOL-II)*SIZE + SIZE/2.0
+                JLOC=YC + JJ*SIZE - SIZE/2.0
+            ENDIF
 !       CONVERSIONFACTOR for mm/day to ft**3/sec
-        AREA =  RERD**2*ABS(SIZE)*PI/180*										! give area of box in square meters
+        AREA =  RERD**2*ABS(SIZE)*PI/180*   ! give area of box in square meters
      &          ABS(SIN((JLOC-SIZE/2.0)*PI/180)-
      $          SIN((JLOC+SIZE/2.0)*PI/180))
         AREA_SUM = AREA_SUM + AREA
-        FACTOR = FRACTION(II,JJ)*35.315*AREA/(86400.0*1000.0)  				!convert to sq.mi. by cell fract (original) - later, we convert back to SI unit
+        FACTOR = FRACTION(II,JJ)*35.315*AREA/(86400.0*1000.0) !convert to sq.mi. by cell fract (original) - later, we convert back to SI unit
         FACTOR_SUM = FACTOR_SUM + FACTOR
         call create_vic_names(jloc,iloc,loc,clen,dprec)
         INQUIRE(FILE=INPATH(1:(INDEX(INPATH,' ')-1))//LOC(1:CLEN),
@@ -341,10 +379,14 @@ C       Ra matrix (mm day-1) for the Penman formula
      $      LOC(1:CLEN),
      $      STATUS='OLD',ERR=9001)
             DO I = 1,NDAY 
-                READ(20,*,END=9001,ERR=9001) IYEAR(I), IMONTH(I), IDAY(I),
+                IF (INDEX(VICDRIVE, 'class')>0) THEN
+                    READ(20,*,END=9001,ERR=9001) IYEAR(I), IMONTH(I), IDAY(I),
      &              DUM1, DUM2, RUNO(I), BASE(I), DUM3, DUM4, DUM5, DUM6, DUM7, vic_eva_vege(I),
      &              vic_trans_vege(I), vic_eva_soil(I), DUM8, DUM9, DUM10, DUM11, DUM12, RHD(I), DUM13,
-     &              AIRTEMP(I),WINDS(I) 												! (IMPORTANT) modify here accordingly depending on your selected outputs from rainfall-runoff
+     &              AIRTEMP(I),WINDS(I)
+                ELSE
+                    READ(20,*,END=9001,ERR=9001) IYEAR(I), IMONTH(I), IDAY(I), DUM1, RUNO(I), BASE(I), vic_eva_vege(I), vic_trans_vege(I), vic_eva_soil(I), RHD(I), AIRTEMP(I), WINDS(I)
+                ENDIF
 !       check to be sure dates in VIC file start at same time specified in input file
                 IF(I.eq.1) THEN
                     IF(IYEAR(I).ne.YR(1) . or. IMONTH(I).ne.MO(1)) THEN
@@ -434,34 +476,47 @@ C       Ra matrix (mm day-1) for the Penman formula
         
         ! Calculate baseflow and runoff
         DO I = 1,NDAY
-            RUNO(I) = RUNO(I) * FACTOR * 0.028 			 ! 0.028 convert from cfs into cms
-            BASE(I) = BASE(I) * FACTOR * 0.028
+            RUNO(I) = RUNO(I) * 0.18308!FACTOR * 0.028 ! 0.028 convert from cfs into cms
+            BASE(I) = BASE(I) * 0.18308!FACTOR * 0.028
         END DO
 
         DO I = 1,NDAY
+            !IF (flow(I)>100) THEN
+            !    WRITE(*,*) 'flow1:',I,flow(I)
+            !END IF
             DO J = 1,KE+UH_DAY-1
                 IF ((I-J+1) .GE. 1) THEN
                         FLOW(I) = FLOW(I)+UH_S(N,J,NO)*(BASE(I-J+1)+RUNO(I-J+1))
                 END IF   
             END DO 
+            !IF (flow(I)>100) THEN
+            !    WRITE(*,*) 'flow3:',I,flow(I)
+            !END IF
             ! allow negative values - evaporation is higher than inflow
             IF (potentialevapo(I)*EVA_FACTOR>(vic_eva_vege(I)+vic_eva_soil(I)+vic_trans_vege(I))) THEN
                 ! also consider the water losses due to evapotranspiration calculated by VIC rainfall-runoff
-                FLOW(I) = FLOW(I)-potentialevapo(I)*FACTOR*0.028/1000*EVA_FACTOR 
-     &          + (vic_eva_soil(I)+vic_eva_vege(I)+vic_trans_vege(I))*FACTOR*0.028/1000
+                FLOW(I) = FLOW(I)-potentialevapo(I)*FACTOR*0.028/1000*EVA_FACTOR + (vic_eva_soil(I)+vic_eva_vege(I)+vic_trans_vege(I))*FACTOR*0.028/1000
             END IF
             IF (potentialevapo(I)<0.0001) THEN          ! if too small, set to 0, also avoid negative values
                 potentialevapo(I) = 0
             END IF
             RESFLOWS(NO,I) = FLOW(I)
-           
-               
+            !!! write data into NF999.txt for checking
+            !IF (UH_S(N,J,NO)*(BASE(I-J+1)+RUNO(I-J+1))>0.1) THEN 
+            !    WRITE(91, *) 'flow:',NO,N,I
+            !    WRITE(91, *) UH_S(N,J,NO)*(BASE(I-J+1)+RUNO(I-J+1))
+            !    WRITE(91, *) FLOW(I),UH_S(N,J,NO),BASE(I-J+1),RUNO(I-J+1)
+            !    WRITE(91, *) BASE(I-J+1)/(FACTOR * 0.028), RUNO(I-J+1)/(FACTOR *0.028)
+            !    WRITE(91, *) FACTOR*0.028
+            !END IF
         END DO
+
+        !CLOSE(91)
         CLOSE(20)
         END DO
        
         IF (MISS_NUM>0) THEN
-            print*, MISS_NUM, ' files not found, zero runoff/baseflow used'
+            print*, MISS_NUM, 'file not found, zero used'
         ENDIF
         RETURN
  9001   WRITE(*,*) 'Error reading time-series data, ',
@@ -563,7 +618,6 @@ c       Subroutine main body
                     NO_OF_BOX(RESORDER) = NO_OF_BOX(RESORDER) + 1
                     CATCHIJ(NO_OF_BOX(RESORDER),1,RESORDER) = I
                     CATCHIJ(NO_OF_BOX(RESORDER),2,RESORDER) = J
-                    !WRITE(*,*) 'Cell (',I,',',J,')---> Res ID ',RES_DIRECT(RESORDER,1)				! show which cells go to which reservoir
                     IF (FINAL .EQ. 0) THEN
                         GOTO 310 
                     ELSE
@@ -703,7 +757,7 @@ c       Subroutine main body
             END IF                           											!if you get there,
         END IF                                										!no_of_box increments
 510     CONTINUE 
-        !WRITE(*,*) 'Res ',RES_DIRECT(RESORDER,1),'---> Res ',RES_DIRECT(RESORDER,2)
+        WRITE(*,*) 'Res ',RES_DIRECT(RESORDER,1),'---> Res ',RES_DIRECT(RESORDER,2)
         WRITE(*,*) 'Number of grid cells upstream of present reservoir',no_of_box(RESORDER)
         RETURN
         END
@@ -712,820 +766,952 @@ C*******************************************************************************
 C     Calling Convolution and Considering Reservoir Rule Curves/Opearting Rules
 C************************************************************************************************************************************************************************************
 
-        SUBROUTINE MAKE_CONVOLUTIONRS
-     & (RPATH, RESER, NCOL, NROW, NO_OF_BOX, PMAX, DAYS, CATCHIJ,
-     &  BASE, RUNO, FLOW, KE, UH_DAY, FRACTION, FACTOR_SUM,
-     &  XC, YC, SIZE, DPREC, INPATH,ICOL,NDAY,IDAY,IMONTH,IYEAR, START_YEAR,START_MO,
-     &  MO, YR, NYR, VOL, FLOWIN, FLOWOUT,FLOWOUT_TURB, HHO, ENERGYPRO, HTK, DIREC, IROW,
-     &  XNE, YNE, NORESERVOIRS, RES_DIRECT, RES_EVAPORATION, TRVLTIME,RESORDER,NAMERS5,NAME5,NSTATIONS_MAX,UH_SS,VRESER,NRESER_MAX, NSTATIONS,STEPBYSTEP,SIM_YEAR,NDAY_SIM,COUPLER_ITERATION,OUTPATH,UH_PATH,NF_PATH,NF_EXIST)
-        IMPLICIT NONE
-c       Declare variables
-        INTEGER     N, DAYS, NDAY,NDAY_SIM, SIM_YEAR,START_YEAR,START_MO,NSTATIONS_MAX,NRESER_MAX, NSTATIONS,PREV_DAY,PREV_MON,PREV_YEAR,STEPS,UH_CLEN,NF_CLEN,OUT_CLEN
-        INTEGER     NCOL,NROW,ICOL,PMAX,KE,UH_DAY,KK
-        INTEGER     CATCHIJ(PMAX,2,NRESER_MAX,NSTATIONS_MAX)
-        INTEGER     NYR,COUPLER_ITERATION
-        INTEGER     RESER(NCOL,NROW)
-        INTEGER     IDAY(DAYS), IMONTH(DAYS), IYEAR(DAYS)
-        INTEGER     MO(12*NYR),YR(12*NYR)
-        INTEGER     DIREC(NCOL,NROW,2)
-        INTEGER     RES_DIRECT(NRESER_MAX,3,NSTATIONS_MAX)
-        INTEGER     YEAR(NRESER_MAX,DAYS,NSTATIONS_MAX),MONTH(NRESER_MAX,DAYS,NSTATIONS_MAX),DAY(NRESER_MAX,DAYS,NSTATIONS_MAX)
-        INTEGER     OPEYEAR(NRESER_MAX,NSTATIONS_MAX)
-        INTEGER     IROW, CURRENTYEAR
-        INTEGER     NO_OF_BOX(NRESER_MAX,NSTATIONS_MAX)
-        INTEGER     XNE(NSTATIONS_MAX), YNE(NSTATIONS_MAX)
-        INTEGER     NORESERVOIRS(NSTATIONS_MAX)
-        INTEGER     I, J, K, L, CAL_MONTH, W, x, II,RESID,DS_RESID
-        INTEGER     NO_OF_ROW(NRESER_MAX,NSTATIONS_MAX)
-        INTEGER     RULE(NRESER_MAX,NSTATIONS_MAX), WITHIRRIGATION(NRESER_MAX,NSTATIONS_MAX),BTHMET_ACTIVE(NRESER_MAX,NSTATIONS_MAX),HYDROPOWER_GENERATOR(NRESER_MAX,NSTATIONS_MAX)
-        INTEGER     STARTDAY(NRESER_MAX,NSTATIONS_MAX)
-        INTEGER     DPREC, RESORDER(NSTATIONS_MAX,NRESER_MAX), NOOFROW(NSTATIONS_MAX), CRTDATE,RESORD(NSTATIONS_MAX)
-        REAL        UH_SS(PMAX,KE+UH_DAY-1,NRESER_MAX),UH_RR(1,KE+UH_DAY-1)
-        REAL        TRVLTIME(NRESER_MAX,NSTATIONS_MAX)
-        REAL        BASE(DAYS,NSTATIONS_MAX), RUNO(DAYS,NSTATIONS_MAX)
-        REAL        FLOW(DAYS,NSTATIONS_MAX)
-        REAL        FRACTION(NCOL,NROW)
-        REAL        PI, RERD, FACTOR, FACTOR_SUM
-        REAL        CURRENTWL(NSTATIONS_MAX), DESIGNWL(NSTATIONS_MAX)
-        REAL        RES_EVAPORATION(NRESER_MAX,DAYS)
-        REAL        XC, YC, SIZE, TEMP
-        REAL        VOL(NRESER_MAX,DAYS,NSTATIONS_MAX), FLOWIN(NRESER_MAX,DAYS,NSTATIONS_MAX), FLOWOUT(NRESER_MAX,DAYS,NSTATIONS_MAX),FLOWOUT_TURB(NRESER_MAX,DAYS,NSTATIONS_MAX),Qmin(NRESER_MAX,DAYS,NSTATIONS_MAX)
-        REAL        HHO(NRESER_MAX,DAYS,NSTATIONS_MAX), ENERGYPRO(NRESER_MAX,DAYS,NSTATIONS_MAX), HTK(NRESER_MAX,DAYS,NSTATIONS_MAX)
-        REAL        HMAX(NRESER_MAX,NSTATIONS_MAX), HMIN(NRESER_MAX,NSTATIONS_MAX)
-        REAL        RESFLOWS(NRESER_MAX,DAYS,NSTATIONS_MAX) 
-        REAL        HRESERMAX(NRESER_MAX,NSTATIONS_MAX), HRESERMIN(NRESER_MAX,NSTATIONS_MAX), VINITIAL(NRESER_MAX,NSTATIONS_MAX), H0(NRESER_MAX,NSTATIONS_MAX)
-        REAL        QRESER(NRESER_MAX,NSTATIONS_MAX),VRESER(NRESER_MAX,NSTATIONS_MAX,DAYS),REALHEAD(NRESER_MAX,NSTATIONS_MAX),VRESERTHAT(NRESER_MAX,NSTATIONS_MAX),VDEAD(NRESER_MAX,NSTATIONS_MAX)
-        REAL        QRESERTHAT(NRESER_MAX,NSTATIONS_MAX), HYDRAUHEAD(NRESER_MAX,NSTATIONS_MAX)
-        REAL        OP1(NRESER_MAX,2,NSTATIONS_MAX) ! rule curve
-        REAL        OP4(NRESER_MAX,DAYS,NSTATIONS_MAX),OP6(NRESER_MAX,DAYS,NSTATIONS_MAX) ! pre-defined time series data
-        REAL        X1(NRESER_MAX,NSTATIONS_MAX), X2(NRESER_MAX,NSTATIONS_MAX), X3(NRESER_MAX,NSTATIONS_MAX), X4(NRESER_MAX,NSTATIONS_MAX)	! operating rule
-        REAL        BTHMET_A(NRESER_MAX,NSTATIONS_MAX),BTHMET_B(NRESER_MAX,NSTATIONS_MAX),BTHMET_C(NRESER_MAX,NSTATIONS_MAX),BTHMET_D(NRESER_MAX,NSTATIONS_MAX)
-        REAL        SEEPAGE(NRESER_MAX,NSTATIONS_MAX), INFILTRATION(NRESER_MAX,NSTATIONS_MAX), Demand(NRESER_MAX,NSTATIONS_MAX)
-        REAL        TEMPO
-        REAL        RESLV(NRESER_MAX,12,NSTATIONS_MAX), OP5X1(NRESER_MAX,12,NSTATIONS_MAX), OP5X2(NRESER_MAX,12,NSTATIONS_MAX), OP5X3(NRESER_MAX,12,NSTATIONS_MAX), OP5X4(NRESER_MAX,12,NSTATIONS_MAX), DEMAND5(NRESER_MAX,12,NSTATIONS_MAX)
-        REAL        IRRIGATION(NRESER_MAX,DAYS),ENV_FLOW(NRESER_MAX,NSTATIONS_MAX)
-        REAL        KFACTOR(NSTATIONS_MAX)
-        CHARACTER*10 WTEMP, W_STR,NDAY_SIM_STR,NDAY_SIM_STR_NEXT,NDAY_SIM_STR_PREV
-        CHARACTER*72 RESFLOWSTRING,RESFLOWSTRING_SIM,RESID_STR,DS_RESID_STR
-        CHARACTER*72 RPATH
-        CHARACTER*72 IPATH(NSTATIONS_MAX)
-        CHARACTER*100 TEMPRPATH(NSTATIONS_MAX)
-        CHARACTER*100 PATHRES3,PATHVOL3
-        CHARACTER*200 INPATH,OUTPATH,UH_PATH,NF_PATH,UH_NAME
-        CHARACTER*20 CHUOI(NSTATIONS_MAX)
-        CHARACTER*21  NAMERS5(NSTATIONS_MAX,NRESER_MAX)
-        CHARACTER*10  NAME5(NSTATIONS_MAX)
-        CHARACTER*100 FILENAME
-        CHARACTER*100 storage_filename,previous_storage_filename,previous_natflow_filename
-        CHARACTER*100 res_filename
-        LOGICAL      STEPBYSTEP
-        CHARACTER(LEN=300) :: check_file
-        LOGICAL :: file_exists,NF_EXIST,RES_IN_BASIN
+SUBROUTINE MAKE_CONVOLUTIONRS
+      & (RPATH, RESER, NCOL, NROW, NO_OF_BOX, PMAX, DAYS, CATCHIJ,
+      &  BASE, RUNO, FLOW, KE, UH_DAY, FRACTION, FACTOR_SUM,
+      &  XC, YC, SIZE, DPREC, INPATH,ICOL,NDAY,IDAY,IMONTH,IYEAR, START_YEAR,START_MO,
+      &  MO, YR, NYR, VOL, FLOWIN, FLOWOUT,FLOWOUT_TURB, HHO, ENERGYPRO, HTK, DIREC, IROW,
+      &  XNE, YNE, NORESERVOIRS, RES_DIRECT, RES_EVAPORATION, TRVLTIME,RESORDER,NAMERS5,NAME5,NSTATIONS_MAX,UH_SS,VRESER,NRESER_MAX, NSTATIONS,STEPBYSTEP,SIM_YEAR,NDAY_SIM,COUPLER_ITERATION,OUTPATH,UH_PATH,NF_PATH,
+      &  NF_EXIST,GRIDFILE_EXIST, GRID_LAT, GRID_LON)
+         IMPLICIT NONE
+ c       Declare variables
+         INTEGER     N, DAYS, NDAY,NDAY_SIM, SIM_YEAR,START_YEAR,START_MO,NSTATIONS_MAX,NRESER_MAX, NSTATIONS,PREV_DAY,PREV_MON,PREV_YEAR,STEPS,UH_CLEN,NF_CLEN,OUT_CLEN
+         INTEGER     NCOL,NROW,ICOL,PMAX,KE,UH_DAY,KK
+         INTEGER     CATCHIJ(PMAX,2,NRESER_MAX,NSTATIONS_MAX)
+         INTEGER     NYR,COUPLER_ITERATION
+         INTEGER     RESER(NCOL,NROW)
+         INTEGER     IDAY(DAYS), IMONTH(DAYS), IYEAR(DAYS)
+         INTEGER     MO(12*NYR),YR(12*NYR)
+         INTEGER     DIREC(NCOL,NROW,2)
+         INTEGER     RES_DIRECT(NRESER_MAX,3,NSTATIONS_MAX)
+         INTEGER     YEAR(NRESER_MAX,DAYS,NSTATIONS_MAX),MONTH(NRESER_MAX,DAYS,NSTATIONS_MAX),DAY(NRESER_MAX,DAYS,NSTATIONS_MAX)
+         INTEGER     OPEYEAR(NRESER_MAX,NSTATIONS_MAX)
+         INTEGER     IROW, CURRENTYEAR
+         INTEGER     NO_OF_BOX(NRESER_MAX,NSTATIONS_MAX)
+         INTEGER     XNE(NSTATIONS_MAX), YNE(NSTATIONS_MAX)
+         INTEGER     NORESERVOIRS(NSTATIONS_MAX)
+         INTEGER     I, J, K, L, CAL_MONTH, W, x, II,RESID,DS_RESID
+         INTEGER     NO_OF_ROW(NRESER_MAX,NSTATIONS_MAX)
+         INTEGER     RULE(NRESER_MAX,NSTATIONS_MAX), WITHIRRIGATION(NRESER_MAX,NSTATIONS_MAX),BTHMET_ACTIVE(NRESER_MAX,NSTATIONS_MAX),HYDROPOWER_GENERATOR(NRESER_MAX,NSTATIONS_MAX),HYDROPOWER_TYPE(NRESER_MAX,NSTATIONS_MAX)
+         INTEGER     STARTDAY(NRESER_MAX,NSTATIONS_MAX)
+         INTEGER     DPREC, RESORDER(NSTATIONS_MAX,NRESER_MAX), NOOFROW(NSTATIONS_MAX), CRTDATE,RESORD(NSTATIONS_MAX)
+         REAL        UH_SS(PMAX,KE+UH_DAY-1,NRESER_MAX),UH_RR(1,KE+UH_DAY-1), Dummy
+         REAL        TRVLTIME(NRESER_MAX,NSTATIONS_MAX)
+         REAL        BASE(DAYS,NSTATIONS_MAX), RUNO(DAYS,NSTATIONS_MAX)
+         REAL        FLOW(DAYS,NSTATIONS_MAX)
+         REAL        FRACTION(NCOL,NROW)
+         REAL        GRID_LAT(NCOL,NROW), GRID_LON(NCOL,NROW)
+         REAL        PI, RERD, FACTOR, FACTOR_SUM
+         REAL        CURRENTWL(NSTATIONS_MAX), DESIGNWL(NSTATIONS_MAX),LowerCurveFactor,UpperCurveFactor
+         REAL        RES_EVAPORATION(NRESER_MAX,DAYS)
+         REAL        XC, YC, SIZE, TEMP
+         REAL        VOL(NRESER_MAX,DAYS,NSTATIONS_MAX), FLOWIN(NRESER_MAX,DAYS,NSTATIONS_MAX), FLOWOUT(NRESER_MAX,DAYS,NSTATIONS_MAX),FLOWOUT_TURB(NRESER_MAX,DAYS,NSTATIONS_MAX),Qmin(NRESER_MAX,DAYS,NSTATIONS_MAX)
+         REAL        HHO(NRESER_MAX,DAYS,NSTATIONS_MAX), ENERGYPRO(NRESER_MAX,DAYS,NSTATIONS_MAX), HTK(NRESER_MAX,DAYS,NSTATIONS_MAX)
+         REAL        HMAX(NRESER_MAX,NSTATIONS_MAX), HMIN(NRESER_MAX,NSTATIONS_MAX)
+         REAL        RESFLOWS(NRESER_MAX,DAYS,NSTATIONS_MAX) 
+         REAL        HRESERMAX(NRESER_MAX,NSTATIONS_MAX), HRESERMIN(NRESER_MAX,NSTATIONS_MAX), VINITIAL(NRESER_MAX,NSTATIONS_MAX), H0(NRESER_MAX,NSTATIONS_MAX)
+         REAL        QRESER(NRESER_MAX,NSTATIONS_MAX),VRESER(NRESER_MAX,NSTATIONS_MAX,DAYS),REALHEAD(NRESER_MAX,NSTATIONS_MAX),VRESERTHAT(NRESER_MAX,NSTATIONS_MAX),VDEAD(NRESER_MAX,NSTATIONS_MAX)
+         REAL        QRESERTHAT(NRESER_MAX,NSTATIONS_MAX), HYDRAUHEAD(NRESER_MAX,NSTATIONS_MAX)
+         REAL        LRC_WL(NRESER_MAX,NSTATIONS_MAX,DAYS),URC_WL(NRESER_MAX,NSTATIONS_MAX,DAYS),LRC_VOL(NRESER_MAX,NSTATIONS_MAX,DAYS),URC_VOL(NRESER_MAX,NSTATIONS_MAX,DAYS),RC_SLOPE
+         REAL        OP1(NRESER_MAX,2,NSTATIONS_MAX) ! rule curve
+         REAL        OP4(NRESER_MAX,DAYS,NSTATIONS_MAX),OP6(NRESER_MAX,DAYS,NSTATIONS_MAX) ! pre-defined time series data
+         REAL        X1(NRESER_MAX,NSTATIONS_MAX), X2(NRESER_MAX,NSTATIONS_MAX), X3(NRESER_MAX,NSTATIONS_MAX), X4(NRESER_MAX,NSTATIONS_MAX)	! operating rule
+         REAL        BTHMET_A(NRESER_MAX,NSTATIONS_MAX),BTHMET_B(NRESER_MAX,NSTATIONS_MAX),BTHMET_C(NRESER_MAX,NSTATIONS_MAX),BTHMET_D(NRESER_MAX,NSTATIONS_MAX)
+         REAL        SEEPAGE(NRESER_MAX,NSTATIONS_MAX), INFILTRATION(NRESER_MAX,NSTATIONS_MAX), Demand(NRESER_MAX,NSTATIONS_MAX)
+         REAL        TEMPO
+         REAL        RESLV(NRESER_MAX,12,NSTATIONS_MAX), OP5X1(NRESER_MAX,12,NSTATIONS_MAX), OP5X2(NRESER_MAX,12,NSTATIONS_MAX), OP5X3(NRESER_MAX,12,NSTATIONS_MAX), OP5X4(NRESER_MAX,12,NSTATIONS_MAX), DEMAND5(NRESER_MAX,12,NSTATIONS_MAX)
+         REAL        IRRIGATION(NRESER_MAX,DAYS),ENV_FLOW(NRESER_MAX,NSTATIONS_MAX)
+         REAL        KFACTOR(NSTATIONS_MAX)
+         CHARACTER*10 WTEMP, W_STR,NDAY_SIM_STR,NDAY_SIM_STR_NEXT,NDAY_SIM_STR_PREV
+         CHARACTER*72 RESFLOWSTRING,RESFLOWSTRING_SIM,RESID_STR,DS_RESID_STR,OUTFLOWSTRING_SIM
+         CHARACTER*72 RPATH
+         CHARACTER*72 IPATH(NSTATIONS_MAX)
+         CHARACTER*100 TEMPRPATH(NSTATIONS_MAX)
+         CHARACTER*100 PATHRES3,PATHVOL3
+         CHARACTER*200 INPATH,OUTPATH,UH_PATH,NF_PATH,UH_NAME
+         CHARACTER*20 CHUOI(NSTATIONS_MAX)
+         CHARACTER*21  NAMERS5(NSTATIONS_MAX,NRESER_MAX)
+         CHARACTER*10  NAME5(NSTATIONS_MAX)
+         CHARACTER*100 FILENAME
+         CHARACTER*100 storage_filename,previous_storage_filename,previous_natflow_filename,previous_outflow_filename
+         CHARACTER*100 res_filename
+         LOGICAL      STEPBYSTEP
+         CHARACTER(LEN=300) :: check_file
+         LOGICAL :: file_exists,NF_EXIST,RES_IN_BASIN,GRIDFILE_EXIST
+         
+ c       Subroutine main body    
+ 
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+ c     STEP 1: Reading unit hydrograph files (UH_S) for reservoirs (NORESERVOIRS) and station (W)
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+ c       Look for reservoirs sequences
+         IF (STEPBYSTEP) THEN
+             CURRENTYEAR = SIM_YEAR
+         ELSE
+             CURRENTYEAR = START_YEAR   ! This needs to be updated to account for year of simulation instead of start_year (otherwise we need to make sure that all dams are set to be operating before start_year)
+         ENDIF
+         
+         DO W=1,NSTATIONS
+             print*,'Number of Stations=', NSTATIONS
+             print*,'Station:',W
+             print*, 'Number of Reservoirs', NORESERVOIRS(W)
+             
+             
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+ c     STEP 2: Making Convolution to Produce Naturalized Flow 
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------                        
+             OUT_CLEN=INDEX(OUTPATH,' ')-1    ! Character Length for Output Path (from configuration.txt)  
+             NF_CLEN=INDEX(NF_PATH,' ')-1 
+             UH_CLEN=INDEX(UH_PATH,' ')-1    ! Character Length for UH_Path
+             WRITE(WTEMP, 10) W
+             write(NDAY_SIM_STR,10) NDAY_SIM    
+ 10          FORMAT(I4)
+             RESFLOWSTRING = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'.txt')
+             print*,'Checking whether to make convolution or not.....'
+             !IF (STEPBYSTEP .AND. ((NDAY_SIM.GT.1) .OR. (COUPLER_ITERATION.GT.1))) THEN
+             IF (STEPBYSTEP .AND. ((NDAY_SIM.GT.1))) THEN    
+                 print*, 'No need to rerun MAKE_CONVOLUTION for Step-By-Step Version'  ! Note that natuarlized flow from previous run has to be prepared for the same number of days (NDAY), i.e., same range of start/end year/month of simulation 
+                 print*, 'Read updated naturalized flow from previous run'
+                 !READ RESFLOWS
+                 RESFLOWSTRING_SIM = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt')
+                 open(72, FILE=NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING_SIM, status='old')
+                 DO N = 1, NORESERVOIRS(W)
+                     READ(72, *) (RESFLOWS(N,K,W), K = 1, NDAY)
+                 ENDDO
+                 close(72)
+ 
+                 OUTFLOWSTRING_SIM = trim(trim('OUTFLOW'//trim(ADJUSTL(WTEMP)))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt')
+                 open(75, FILE=NF_PATH(1:NF_CLEN)//'/stepbystep/'//OUTFLOWSTRING_SIM, status='old')
+                 DO N = 1, NORESERVOIRS(W)
+                     READ(75, *) (FLOWOUT(N,K,W), K = 1, NDAY)
+                 ENDDO
+                 close(75)
+             ELSEIF (STEPBYSTEP .AND. (NDAY_SIM.EQ.1) .AND. (NF_EXIST)) THEN
+                 print*, 'No need to run MAKE_CONVOLUTION for Step-By-Step Version'
+                 print*, 'Read updated naturalized flow from previous run'
+                 !READ RESFLOWS
+                 RESFLOWSTRING_SIM = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt')
+                 open(72, FILE=NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING_SIM, status='old')
+                 DO N = 1, NORESERVOIRS(W)
+                     READ(72, *) (RESFLOWS(N,K,W), K = 1, NDAY)
+                 ENDDO
+                 
+             ELSEIF (.NOT. STEPBYSTEP .AND. (NF_EXIST)) THEN ! Note that natuarlized flow from previous run has to be prepared for the same number of days (NDAY), i.e., same range of start/end year/month of simulation 
+                 print*, 'No need to run MAKE_CONVOLUTION'
+                 print*, 'Read updated naturalized flow from previous run'
+                 !READ RESFLOWS
+                 RESFLOWSTRING = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'.txt')
+                 open(72, FILE = NF_PATH(1:NF_CLEN)//RESFLOWSTRING, status='old')
+                 print*,RESFLOWSTRING
+                 DO N = 1, NORESERVOIRS(W)
+                     READ(72, *) (RESFLOWS(N,K,W), K = 1, NDAY)
+                 ENDDO
         
-c       Subroutine main body    
-
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
-c     STEP 1: Reading unit hydrograph files (UH_S) for reservoirs (NORESERVOIRS) and station (W)
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
-c       Look for reservoirs sequences
-        IF (STEPBYSTEP) THEN
-            CURRENTYEAR = SIM_YEAR
-        ELSE
-            CURRENTYEAR = START_YEAR   ! This needs to be updated to account for year of simulation instead of start_year (otherwise we need to make sure that all dams are set to be operating before start_year)
-        ENDIF
-        
-        DO W=1,NSTATIONS
-            print*,'Number of Stations=', NSTATIONS
-            print*,'Station:',W
-            print*, 'Number of Reservoirs', NORESERVOIRS(W)
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
-c     STEP 2: Making Convolution to Produce Naturalized Flow 
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------                        
-            OUT_CLEN=INDEX(OUTPATH,' ')-1    ! Character Length for Output Path (from configuration.txt)  
-            NF_CLEN=INDEX(NF_PATH,' ')-1 
-            UH_CLEN=INDEX(UH_PATH,' ')-1    ! Character Length for UH_Path
-            WRITE(WTEMP, 10) W
-            write(NDAY_SIM_STR,10) NDAY_SIM    
-10          FORMAT(I4)
-            RESFLOWSTRING = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'.txt')
-            print*,'Checking whether to make convolution or not.....'
-            IF (STEPBYSTEP .AND. ((NDAY_SIM.GT.1) .OR. (COUPLER_ITERATION.GT.1))) THEN
-                print*, 'No need to rerun MAKE_CONVOLUTION for Step-By-Step Version'  ! Note that natuarlized flow from previous run has to be prepared for the same number of days (NDAY), i.e., same range of start/end year/month of simulation 
-                print*, 'Read updated naturalized flow from previous run'
-                !READ RESFLOWS
-                RESFLOWSTRING_SIM = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt')
-                open(72, FILE=NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING_SIM, status='old')
-                DO N = 1, NORESERVOIRS(W)
-                    READ(72, *) (RESFLOWS(N,K,W), K = 1, NDAY)
-                ENDDO
-                !close(72,status='delete')
-                close(72)
-            ELSEIF (STEPBYSTEP .AND. (NDAY_SIM.EQ.1) .AND. (NF_EXIST)) THEN
-                print*, 'No need to run MAKE_CONVOLUTION for Step-By-Step Version'
-                print*, 'Read updated naturalized flow from previous run'
-                !READ RESFLOWS
-                RESFLOWSTRING_SIM = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt')
-                open(72, FILE=NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING_SIM, status='old')
-                DO N = 1, NORESERVOIRS(W)
-                    READ(72, *) (RESFLOWS(N,K,W), K = 1, NDAY)
-                ENDDO
-                
-            ELSEIF (.NOT. STEPBYSTEP .AND. (NF_EXIST)) THEN ! Note that natuarlized flow from previous run has to be prepared for the same number of days (NDAY), i.e., same range of start/end year/month of simulation 
-                print*, 'No need to run MAKE_CONVOLUTION'
-                print*, 'Read updated naturalized flow from previous run'
-                !READ RESFLOWS
-                RESFLOWSTRING = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'.txt')
-                open(72, FILE = NF_PATH(1:NF_CLEN)//RESFLOWSTRING, status='old')
-                DO N = 1, NORESERVOIRS(W)
-                    READ(72, *) (RESFLOWS(N,K,W), K = 1, NDAY)
-                ENDDO
-       
-                
-            ELSE ! Not STEPBYSTEP Version or STEPBYSTEP with step=1 & NF_EXIST=FALSE
-                print*,'reading grid from files uh_s' 
-                ! Reading UH_S files for reservoirs
-                IF (STEPBYSTEP) THEN
-                    DO J = 1,(NORESERVOIRS(W)-1)
-                        OPEN(98,file = UH_PATH(1:UH_CLEN)//trim(adjustl(NAMERS5(W,RESORDER(W,J))))//'.uh_s', status='old')
-                        DO N = 1,NO_OF_BOX(RESORDER(W,J),W)
-                            READ(98, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)  
-                        ENDDO
-                        CLOSE(98)
-                    ENDDO
-                    ! Reading UH_S files for last reservoir, which is the station under consideration
-                    J=NORESERVOIRS(W)
-                    OPEN(97,file = UH_PATH(1:UH_CLEN)//trim(adjustl(NAME5(W)))//'.uh_s', status='old')
-                    DO N= 1,NO_OF_BOX(RESORDER(W,J),W)
-                        READ(97, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)
-                    ENDDO
-                    CLOSE(97)
-                ELSE ! Not STEPBYSTEP Version
-                    DO J = 1,(NORESERVOIRS(W)-1)
-                        OPEN(98,file = UH_PATH(1:UH_CLEN)//trim(adjustl(NAMERS5(W,RESORDER(W,J))))//'.uh_s', status='old')
-                        DO N = 1,NO_OF_BOX(RESORDER(W,J),W)
-                            READ(98, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)  
-                        ENDDO
-                        CLOSE(98)
-                    ENDDO    
-                    ! Reading UH_S files for station
-                    J=NORESERVOIRS(W)
-                    OPEN(97,file = UH_PATH(1:UH_CLEN)//trim(adjustl(NAME5(W)))//'.uh_s', status='old')
-                    DO N= 1,NO_OF_BOX(RESORDER(W,J),W)
-                        READ(97, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)
-                    ENDDO
-                    CLOSE(97)
-                ENDIF
-                print*, 'Making Convolution to produce naturalized flow ...'
-                RESFLOWS(:,:,W)=0
-                DO N = 1,NORESERVOIRS(W)
-                    print*,N, 'Working on reservoir no...',RES_DIRECT(N,1,W)
-                    !RESFLOWS(N,:,W)=0
-                    CALL MAKE_CONVOLUTION
+                 
+             ELSE ! Not STEPBYSTEP Version or STEPBYSTEP with step=1 & NF_EXIST=FALSE
+                 print*,'reading grid from files uh_s' 
+                 ! Reading UH_S files for reservoirs
+                 IF (STEPBYSTEP) THEN
+                     DO J = 1,(NORESERVOIRS(W)-1)
+                         OPEN(98,file = UH_PATH(1:UH_CLEN)//trim(adjustl(NAMERS5(W,RESORDER(W,J))))//'.uh_s', status='old')
+                         DO N = 1,NO_OF_BOX(RESORDER(W,J),W)
+                             READ(98, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)  
+                         ENDDO
+                         CLOSE(98)
+                     ENDDO
+                     ! Reading UH_S files for last reservoir, which is the station under consideration
+                     J=NORESERVOIRS(W)
+                     OPEN(97,file = UH_PATH(1:UH_CLEN)//trim(adjustl(NAME5(W)))//'.uh_s', status='old')
+                     DO N= 1,NO_OF_BOX(RESORDER(W,J),W)
+                         READ(97, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)
+                     ENDDO
+                     CLOSE(97)
+                 ELSE ! Not STEPBYSTEP Version
+                     DO J = 1,(NORESERVOIRS(W)-1)
+                         OPEN(98,file = UH_PATH(1:UH_CLEN)//trim(adjustl(NAMERS5(W,RESORDER(W,J))))//'.uh_s', status='old')
+                         DO N = 1,NO_OF_BOX(RESORDER(W,J),W)
+                             READ(98, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)  
+                         ENDDO
+                         CLOSE(98)
+                     ENDDO    
+                     ! Reading UH_S files for station
+                     J=NORESERVOIRS(W)
+                     OPEN(97,file = UH_PATH(1:UH_CLEN)//trim(adjustl(NAME5(W)))//'.uh_s', status='old')
+                     DO N= 1,NO_OF_BOX(RESORDER(W,J),W)
+                         READ(97, *) (UH_SS(N,K,RESORDER(W,J)), K = 1,KE+UH_DAY-1)
+                     ENDDO
+                     CLOSE(97)
+                 ENDIF
+                 print*, 'Making Convolution to produce naturalized flow ...'
+                 RESFLOWS(:,:,W)=0
+                 DO N = 1,NORESERVOIRS(W)
+                     print*,N, 'Working on reservoir no...',RES_DIRECT(N,1,W)
+                     CALL MAKE_CONVOLUTION
      &                   (RPATH,RESER,NCOL, NROW, NO_OF_BOX(:,W), PMAX, DAYS,
      &                   CATCHIJ(:,:,:,W), BASE(:,W), RUNO(:,W), FLOW(:,W), KE, UH_SS,UH_DAY,FRACTION,
      &                   FACTOR_SUM,XC,YC,SIZE,DPREC,INPATH,ICOL,NDAY,
      &                   IDAY,IMONTH,IYEAR, START_YEAR, START_MO, MO, YR, NYR, VOL(:,:,W),
      &                   FLOWIN(:,:,W), FLOWOUT(:,:,W), HHO(:,:,W), RESFLOWS(:,:,W),N,RES_DIRECT(N,1,W),
-     &                   RES_EVAPORATION, NORESERVOIRS(W),NRESER_MAX)    
-                ENDDO
-c               !SAVE RESFLOWS TO READ THEM LATER    
-                IF (STEPBYSTEP) THEN
-                    RESFLOWSTRING= trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt')
-                    open(71, FILE = NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING, status='unknown')
-                ELSE
-                    RESFLOWSTRING = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'.txt')
-                    open(71, FILE = NF_PATH(1:NF_CLEN)//RESFLOWSTRING, status='unknown')
-                ENDIF
-                DO N = 1,NORESERVOIRS(W)
-                    WRITE(71, *) (RESFLOWS(N,K,W), K = 1,NDAY)
-                ENDDO
-                close(71)
-c               !READ RESFLOWS
-                IF (STEPBYSTEP) THEN
-                    open(72, FILE=NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING, status='old',ERR=9004)
-                ELSE
-                    open(72, FILE=NF_PATH(1:NF_CLEN)//RESFLOWSTRING, status='old',ERR=9004)
-                ENDIF
-                DO N = 1, NORESERVOIRS(W)
-                    READ(72, *) (RESFLOWS(N,K,W), K = 1, NDAY)
-                ENDDO
-                close(72)             
-            ENDIF
-            
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
-c     STEP 3: Initiate Reservoir Variables (Fluxes and States) and Read Reservoir Parameters
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------                                    
-            IF (STEPBYSTEP) THEN
-               ! I = 1,2            ! only one step to run and next step to save I+1 step variables
-                DO I = 1, 2
-                    DO J = 1, NORESERVOIRS(W)-1
-                        FLOWIN(J,I,W) = 0
-                        FLOWOUT(J,I,W) = 0
-                        Qmin(J,I,W) = 0
-                        VOL(J,I,W) = 0
-                        ENERGYPRO(J,I,W) = 0
-                        HTK(J,I,W) = 0
-                    END DO
-                END DO
-                IF ((NDAY_SIM.GT.1) .OR. (COUPLER_ITERATION.GT.1)) THEN
-                    write(W_STR,10) W ! convert integer to string to be able to concatenate in filename with strings
-                    write(NDAY_SIM_STR,10) NDAY_SIM
-                    storage_filename='RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt'
-                    open(99,FILE = OUTPATH(1:OUT_CLEN)//'/stepbystep/'//storage_filename,STATUS='OLD',ERR=9004)
-                    READ(99, *) (VOL(J,1,W), J = 1, NORESERVOIRS(W))
-                    close(99)
-                END IF  
-            ELSE ! Not STEPBYSTEP Version 
-                DO I = 1, NDAY
-                    DO J = 1, NORESERVOIRS(W)-1
-                        FLOWIN(J,I,W) = 0
-                        FLOWOUT(J,I,W) = 0
-                        Qmin(J,I,W) = 0
-                        VOL(J,I,W) = 0
-                        ENERGYPRO(J,I,W) = 0
-                        HTK(J,I,W) = 0
-                    END DO
-                END DO
-            ENDIF
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
-c     STEP 4: Read Reservoir Parameters
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------                         
-!           Read reservoir characteristics/parameters from input file (/Reservoirs/res1.txt, /Reservoirs/res2.txt,...)
-            print*, 'Reading Reservoir Parameters.....'
-            DO  J  = 1, NORESERVOIRS(W)-1
-                WRITE(CHUOI(W),*) RES_DIRECT(J,1,W)
-                TEMPRPATH(W) = trim(RPATH)//"res"//trim(ADJUSTL(CHUOI(W)))//".txt"
-                OPEN(25, FILE = TEMPRPATH(W),FORM = 'FORMATTED',
-     &          STATUS='OLD',ERR=9002)
-                READ(25,*)  
-                READ(25,*) HRESERMAX(J,W),HRESERMIN(J,W),VRESERTHAT(J,W),VDEAD(J,W),
-     &          HYDRAUHEAD(J,W), QRESERTHAT(J,W), OPEYEAR(J,W), VINITIAL(J,W)
-                READ(25,*)
-                READ(25,*) SEEPAGE(J,W), INFILTRATION(J,W)
-                READ(25,*)
-                READ(25,*) WITHIRRIGATION(J,W)
-                READ(25,'(A)') IPATH(W)
-                READ(25,*)
-                ! convert units of storage to m3
-                !VRESERTHAT(J,W)=VRESERTHAT(J,W)*1000
-                !VDEAD(J,W)=VDEAD(J,W)*1000
-                !VINITIAL(J,W)=VINITIAL(J,W)*1000
-                IF (WITHIRRIGATION(J,W) .EQ. 0) THEN
-                    DO L = 1, DAYS-1
-                        IRRIGATION(J,L) = 0
-                    END DO
-                ELSE IF (WITHIRRIGATION(J,W) .EQ. 1) THEN
-                    OPEN(27, FILE = IPATH(W),FORM = 'FORMATTED',STATUS='OLD',ERR=9003)
-                    READ(27,*)
-                    READ(27,*) NOOFROW(W)
-                    READ(27,*)
-                    DO L = 1, NOOFROW(W)
-                        READ(27,*) IRRIGATION(J,L)
-                    END DO
-                    CLOSE(27)
-                END IF
-                
-                READ(25,*) HYDROPOWER_GENERATOR(J,W)  ! Read the HYDROPOWER_GENERATOR of reservoir operation; constrained by hydropower or not (HYDROPOWER_GENERATOR=1 -> Generators ON / HYDROPOWER_GENERATOR=0 -> Disconnect turbines from generators)
-                READ(25,*)
-                READ(25,*) ENV_FLOW(J,W)  ! Read the percentage of environmental flow (% of maximum flow)
-                READ(25,*)
-                READ(25,*) RULE(J,W)
-		IF (RULE(J,W) .EQ. 0) THEN ! run-of-the-river dam
-                        READ(25,*) Dummy
-	        END IF
-                IF (RULE(J,W) .EQ. 1) THEN ! simplified rule curve
-                    READ(25,*) HMAX(J,W), HMIN(J,W), OP1(J,1,W),OP1(J,2,W)
-                    IF (HMAX(J,W) .LT. HMIN(J,W)) THEN
-                        TEMP=HMAX(J,W)
-                        HMAX(J,W)=HMIN(J,W)
-                        HMIN(J,W)=TEMP
-                    ENDIF
-                ELSE IF (RULE(J,W) .EQ. 2) THEN ! rule curve
-                    READ(25,*) RESLV(J,1,W), RESLV(J,2,W), RESLV(J,3,W), RESLV(J,4,W), RESLV(J,5,W), RESLV(J,6,W),
-     &              RESLV(J,7,W), RESLV(J,8,W), RESLV(J,9,W), RESLV(J,10,W), RESLV(J,11,W), RESLV(J,12,W)
-                ELSE IF (RULE(J,W) .EQ. 3) THEN ! operating rule
-                    READ(25,*) Demand(J,W), X1(J,W), X2(J,W), X3(J,W), X4(J,W)
-                ELSE IF (RULE(J,W) .EQ. 4) THEN! predefined time-series of release
-                    READ(25,'(A)')FILENAME
-                    PATHRES3 = trim(trim(ADJUSTL(FILENAME)))
-		            print*,'Predefined Time Series of Release:', PATHRES3
-                    OPEN(26, FILE = PATHRES3,FORM = 'FORMATTED',ERR=9002)
-                    READ(26,*) NO_OF_ROW(J,W) 						! Read the number of rows of reservoir J th
-                    DO L = 1, NO_OF_ROW(J,W)
-                        READ(26,*) YEAR(J,L,W), MONTH(J,L,W), DAY(J,L,W), OP4(J,L,W)
-                        IF ((YEAR(J,L,W) .EQ. START_YEAR) .AND. (MONTH(J,L,W) .EQ. START_MO) .AND. (DAY(J,L,W) .EQ. 1)) THEN
-                            STARTDAY(J,W) = L-1							! If the time-series is shorter than the simulation period (release = 0); Changed to "L-1" instead of "L" so STARDAY=0 if time series starts with simulation period
-                        END IF
-                    END DO
-                    CLOSE(26)
-                ELSE IF (RULE(J,W) .EQ. 5) THEN
-                    DO L = 1, 12
-                        READ(25,*) DEMAND5(J,L,W), OP5X1(J,L,W), OP5X2(J,L,W), OP5X3(J,L,W), OP5X4(J,L,W)
-                    END DO
-                ELSE IF (RULE(J,W) .EQ. 6) THEN  !predefined time-series of storage
-                    READ(25,'(A)')FILENAME
-                    PATHRES3 = trim(trim(ADJUSTL(FILENAME)))
-		            print*,'Predefined Time Series of Storage:', PATHRES3
-                    OPEN(27, FILE = PATHRES3,FORM = 'FORMATTED',ERR=9002)
-                    READ(27,*) NO_OF_ROW(J,W) 						! Read the number of rows of reservoir J th
-                    DO L = 1, NO_OF_ROW(J,W)
-                        READ(27,*) YEAR(J,L,W), MONTH(J,L,W), DAY(J,L,W), OP6(J,L,W)
-                        IF ((YEAR(J,L,W) .EQ. START_YEAR) .AND. (MONTH(J,L,W) .EQ. START_MO) .AND. (DAY(J,L,W) .EQ. 1)) THEN
-                            STARTDAY(J,W) = L-1							! If the time-series is shorter than the simulation period (storage = 0); Changed to "L-1" instead of "L" so STARDAY=0 if time series starts with simulation period
-                        END IF
-                    END DO
-                    CLOSE(27)
-                END IF
-                ! Read Bathymetry Parameters
-                READ(25,*)
-                READ(25,*) BTHMET_ACTIVE(J,W)
-                !######################## Calculate the bottom level of reservoir [H0] [Volume =Zero]
-                IF (BTHMET_ACTIVE(J,W).EQ.1) THEN
-                    READ(25,*) BTHMET_A(J,W), BTHMET_B(J,W),BTHMET_C(J,W),BTHMET_D(J,W)
-                    H0(J,W)=BTHMET_A(J,W)/(1+BTHMET_D(J,W))   ! Volume =Zero in the Fitting Equation
-                ELSE
-                    KFACTOR(W) = SQRT(VDEAD(J,W)/VRESERTHAT(J,W))							! calculate the bottom level of reservoir
-                    H0(J,W) = (KFACTOR(W)*HRESERMAX(J,W) - HRESERMIN(J,W))/(KFACTOR(W)-1)		! pyramid shape reservoir
-                    !H0(J,W) = (HRESERMAX(J,W)-HRESERMIN(J,W)*(VRESERTHAT(J,W)+VDEAD(J,W))/VDEAD(J,W))/(1-(VRESERTHAT(J,W)+VDEAD(J,W))/VDEAD(J,W))    !This actually performs better, but we will fix the problem of H0 with reservoirs bathimetry
-                ENDIF
-                CLOSE(25)
+     &                   RES_EVAPORATION, NORESERVOIRS(W),NRESER_MAX, GRIDFILE_EXIST, GRID_LAT,GRID_LON)      
+                 ENDDO
                  
-                IF (CURRENTYEAR>=OPEYEAR(J,W)) THEN
-                    IF (STEPBYSTEP .AND. ((NDAY_SIM.GT.1) .OR. (COUPLER_ITERATION.GT.1))) THEN   ! CURRENTYEAR=START_YEAR; do we need to change this condition for the case when NDAY_SIM>1 but CURRENTYEAR>=OPEYEAR, then we need to assign VOL=Vinitial?
-                        print*,'Read the storage volume from the previous time step'
-                    ELSE
-                        VOL(J,1,W) = VINITIAL(J,W)
-                    ENDIF 
-                ELSE 
-                    VOL(J,1,W) = 0.001
-                END IF
-            END DO   ! End of J Loop for NORESERVOIRS [Line 916]
-        END DO        ! End of W Loop for NSTATIONS [Line 790]
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
-c     STEP 5: Reservoir Modeling Considering Operating Curve
-c------------------------------------------------------------------------------------------------------------------------------------------------------------------             
-        print*, 'Reservoir Modeling Considering Operating Curve.....'
-        IF (STEPBYSTEP) THEN
-           STEPS = 1            ! only one step to run
-        ELSE
-           STEPS=NDAY
-        ENDIF
-        !LOOP OVER TIMESTEPS
-        DO I = 1, STEPS
-            IF (STEPBYSTEP) THEN
-                II=NDAY_SIM    ! II=index of simulated day 
-            ELSE
-                II=I    ! II=same as the steps (NDAY)
-            ENDIF   
-            !LOOP OVER STATIONS AND  RESERVOIRS FOR OPERATING CURVE  
-            DO W=1, NSTATIONS
-                DO J = 1, NORESERVOIRS(W)-1
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
-c     STEP 5-1: Check if the reservoir has started operation (reaching the year of construction) 
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                    CURRENTYEAR = START_YEAR + INT(II/365)		! approximate, does not consider leap years
-                    IF (CURRENTYEAR>=OPEYEAR(J,W)) THEN
-                        VRESER(J,W,I) = (VRESERTHAT(J,W)+VDEAD(J,W))  
-                        REALHEAD(J,W) = HYDRAUHEAD(J,W)
-                        QRESER(J,W) = QRESERTHAT(J,W)    
-                    ELSE
-                        GOTO 125
-                    END IF
-                    ! Consider Inflow = Naturalized Flow
-                    FLOWIN(J,I,W) = RESFLOWS(J,II,W)     ! change here I (step) to II (simulated day)
-                    ! Considering Environmental Flow (Minimum Flow = 10% of mean flow or ~ 5% of the Qmax=QRESER)
-                    Qmin(J,I,W)=ENV_FLOW(J,W) * QRESERTHAT(J,W)
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
-c     STEP 5-2: Reservoir Operation using Strategy 1 or 2 
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                    !Calculate the designed water level
-                    !Note RULE = 1: simplified rule curve - 2: rule curve - 3: operating rules: - 4 pre-defined time-series data - 5 12 month operating rule
-                    CRTDATE = INT(1.0* mod(II,365)+(START_MO-1)*30)						! approximate
-                    IF ((RULE(J,W) .EQ. 1) .or. (RULE(J,W) .EQ. 2)) THEN   ! (Options 1 and 2: rule curves)
-                        IF (CURRENTYEAR<OPEYEAR(J,W)) THEN
-                            FLOWOUT(J,I,W) = FLOWIN(J,I,W)
-                            VOL(J,I+1,W) = VOL(J,I,W)
-                            GOTO 123
-                        END IF
-                        IF (RULE(J,W) .EQ. 1) THEN
-                            IF (OP1(J,1,W)>OP1(J,2,W)) THEN
-                            ! Caculate target water level
-                                IF ((CRTDATE .GT. OP1(J,2,W)) .and. (CRTDATE .LT. OP1(J,1,W))) THEN     ! OP1 are the time T1 and T2 at which predefined maximum (HMAX) and minimum (HMIN) levels are reached
-                                    DESIGNWL(W)=(CRTDATE-OP1(J,2,W))/(OP1(J,1,W)-OP1(J,2,W))*(HMAX(J,W)-HMIN(J,W))
-                                ELSE IF (CRTDATE .GE. OP1(J,1,W)) THEN 
-                                    DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))
-     &                                  -(CRTDATE-OP1(J,1,W))/(365-OP1(J,1,W)+OP1(J,2,W))*
-     &                                  (HMAX(J,W)-HMIN(J,W))
-                                ELSE
-                                    DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))
-     &                              -(CRTDATE+365-OP1(J,1,W))/(365-OP1(J,1,W)+OP1(J,2,W))*
-     &                              (HMAX(J,W)-HMIN(J,W))
-                                ENDIF
-                            ELSE
-                                IF ((CRTDATE .GT. OP1(J,1,W)) .and. (CRTDATE .LT. OP1(J,2,W))) THEN
-                                    DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))-(CRTDATE-OP1(J,1,W))/(OP1(J,2,W)-OP1(J,1,W))*(HMAX(J,W)-HMIN(J,W))
-                                ELSE IF (CRTDATE .GE. OP1(J,2,W)) THEN 
-                                    DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))/(365-OP1(J,2,W)+OP1(J,1,W))*(CRTDATE-OP1(J,2,W))
-                                ELSE 
-                                    DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))/(365-OP1(J,2,W)+OP1(J,1,W))*
-     &                              (CRTDATE-OP1(J,1,W))+(HMAX(J,W)-HMIN(J,W))
-                                ENDIF
-                            END IF
-                            DESIGNWL(W) = DESIGNWL(W) + (HMIN(J,W) - H0(J,W))
-                        ELSE   ! Operation Rule #2
-                            DESIGNWL(W) = RESLV(J,CAL_MONTH(CRTDATE),W)
-                            DESIGNWL(W) = DESIGNWL(W) - H0(J,W)
-                        ENDIF
-                        HTK(J,I,W) = DESIGNWL(W) + H0(J,W)													! water head
-                        !Calculate the Water Level using Pyramid Shape of bathymetry or provided Parameters
-                        IF (BTHMET_ACTIVE(J,W).EQ.1) THEN
-                            CURRENTWL(W)=BTHMET_A(J,W)/(EXP(-1*VOL(J,I,W)/1000*BTHMET_B(J,W))+VOL(J,I,W)/1000*BTHMET_C(J,W)+BTHMET_D(J,W))   ! Fitting Equation by Shanti [convert volume from 1000M3 to MCM]
-                        ELSE
-                            CURRENTWL(W) = VOL(J,I,W) * (HRESERMAX(J,W)-H0(J,W))/VRESER(J,W,I)
-                        ENDIF
-                        ! Check Zones/Cases of Rule Curve 
-                        IF (CURRENTWL(W)>=DESIGNWL(W)) THEN											! Zone 3
-                            IF ((VOL(J,I,W)+FLOWIN(J,I,W)*24*3.6 -QRESER(J,W)*24*3.6)						! Case 2
-     &                              >(DESIGNWL(W)* VRESER(J,W,I)) /(HRESERMAX(J,W)-H0(J,W))) THEN
-                                VOL(J,I+1,W) = VOL(J,I,W) + FLOWIN(J,I,W)*24*3.6-QRESER(J,W)*24*3.6
-                                FLOWOUT(J,I,W) = QRESER(J,W)
-                                !VOL(J,I+1,W)=(DESIGNWL(W)*VRESER(J,W,I))/(HRESERMAX(J,W)-H0(J,W))  ! from Shanti Version (no need for this line: bug fixed by Bruno)
-                            ELSE																	! Case 1
-                                VOL(J,I+1,W)=(DESIGNWL(W)*VRESER(J,W,I))/(HRESERMAX(J,W)-H0(J,W))
-                                FLOWOUT(J,I,W)=(VOL(J,I,W)-VOL(J,I+1,W))/24/3.6+ FLOWIN(J,I,W)
-                            END IF
-                            GOTO 123   ! Done with the Operating Curve
-                        ELSE																		! Zone 2
-                            IF ((VOL(J,I,W)+FLOWIN(J,I,W)*24*3.6)>((DESIGNWL(W)* VRESER(J,W,I))				! Case 2
-     &                              /(HRESERMAX(J,W)-H0(J,W)))) THEN
-                                VOL(J,I+1,W)=(DESIGNWL(W) * VRESER(J,W,I))/(HRESERMAX(J,W)-H0(J,W))
-                                FLOWOUT(J,I,W)=FLOWIN(J,I,W)-(VOL(J,I+1,W)-VOL(J,I,W))/24/3.6
-                                IF (FLOWOUT(J,I,W)>QRESER(J,W)) THEN
-                                    VOL(J,I+1,W)=VOL(J,I+1,W)+(FLOWOUT(J,I,W)-QRESER(J,W))*24*3.6
-                                    FLOWOUT(J,I,W) = QRESER(J,W)
-                                END IF
-                                GOTO 123
-                            ELSE																	! Case 1 (this case covers Zone 1 + Zone 2 case 1)
-                                VOL(J,I+1,W) = VOL(J,I,W) + FLOWIN(J,I,W)*24*3.6
-                                FLOWOUT(J,I,W) = Qmin(J,I,W)
-                                GOTO 123
-                            END IF
-                        END IF
-                        
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
-c     STEP 5-3: Reservoir Operation using Strategy 3 
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx                    
-                    ELSE IF (RULE(J,W) .EQ. 3) THEN ! opearting rule (Option 3)
-                        ! Note x1 and x4 in radian (0 to pi/2), not degree
-                        IF (VOL(J,I,W) < VDEAD(J,W)) THEN ! below dead water level
-                            FLOWOUT(J,I,W) = 0																					! case 1
-                        ELSE IF (VOL(J,I,W) .LE. X2(J,W)) THEN ! hedging
-                            IF ((VOL(J,I,W)-VDEAD(J,W)+FLOWIN(J,I,W)*24*3.6) .LE. (Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))*24*3.6)) THEN		! discharge more than the water amount in reservoir (case 2)
-                                FLOWOUT(J,I,W) =(VOL(J,I,W)-VDEAD(J,W))/24/3.6+FLOWIN(J,I,W)											! discharge all of water in the reservoir
-                            ELSE	! (case 3)
-                                FLOWOUT(J,I,W) = Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))
-                            END IF
-                        ELSE IF (VOL(J,I,W).GE. X3(J,W)) THEN 	! spilling
-                            IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))*24*3.6>(VOL(J,I,W))-VDEAD(J,W)) THEN		! discharge more than the water in reservoir (just to make sure)
-                                FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6										! discharge all of water in the reservoir
-                            ELSE IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))>QRESER(J,W)) THEN
-                                FLOWOUT(J,I,W) = QRESER(J,W)
-                            ELSE	 ! case 5
-                                FLOWOUT(J,I,W) = Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W))
-                            END IF
-                        ELSE ! releasing
-                            IF (Demand(J,W)*24*3.6>(VOL(J,I,W)-VDEAD(J,W))) THEN
-                                FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6
-                            ELSE
-                                FLOWOUT(J,I,W) = Demand(J,W)			! case 4
-                            END IF
-                        END IF
-                        IF (FLOWOUT(J,I,W)>QRESER(J,W)) THEN			! double check just in case users chose unrealistic x1 and x4
-                            FLOWOUT(J,I,W) = QRESER(J,W)
-                        END IF
-                        VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W)-FLOWOUT(J,I,W))*24*3.6
-                        GOTO 123
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
-c     STEP 5-4: Reservoir Operation using Strategy 4
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                    ELSE IF (RULE(J,W) .EQ. 4) THEN! pre-defined time series (Option 4)
-                        IF ((OP4(J,I+STARTDAY(J,W),W) .GT. QRESER(J,W)) .AND. (VOL(J,I,W) .LT. VRESER(J,W,I))) THEN
-                            OP4(J,I+STARTDAY(J,W),W) = QRESER(J,W)
-                        END IF
-                        IF (OP4(J,I+STARTDAY(J,W),W)*24*3.6 .GT.((VOL(J,I,W)-VDEAD(J,W)))+FLOWIN(J,I,W)*24*3.6) THEN
-                            FLOWOUT(J,I,W) =(VOL(J,I,W)-VDEAD(J,W))/24/3.6 + FLOWIN(J,I,W)    ! Maximum flow that can be released (inflow + storage)
-                        ELSE
-                            FLOWOUT(J,I,W) = OP4(J,I+STARTDAY(J,W),W)
-                        END IF
-                        IF (FLOWOUT(J,I,W)<0) THEN
-                            FLOWOUT(J,I,W)=0
-                        END IF
-                        
-                        VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W)-FLOWOUT(J,I,W))*24*3.6
-                        GOTO 123
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
-c     STEP 5-5: Reservoir Operation using Strategy 5
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                    ELSE IF (RULE(J,W) .EQ. 5) THEN ! note: this option is similar to OP3 but for a periodic demand
-                    ! Note x1 and x4 in radian (0 to pi/2), not degree, this part can be shorthen
-                        X1(J,W) = OP5X1(J,CAL_MONTH(CRTDATE),W)
-                        X2(J,W) = OP5X2(J,CAL_MONTH(CRTDATE),W)
-                        X3(J,W) = OP5X3(J,CAL_MONTH(CRTDATE),W)
-                        X4(J,W) = OP5X4(J,CAL_MONTH(CRTDATE),W)
-                        Demand(J,W) = DEMAND5(J,CAL_MONTH(CRTDATE),W)
-                        IF (VOL(J,I,W) < VDEAD(J,W)) THEN ! below dead water level
-                            FLOWOUT(J,I,W) = 0																					! case 1
-                        ELSE IF (VOL(J,I,W) .LE. X2(J,W)) THEN ! hedging
-                            IF ((VOL(J,I,W)-VDEAD(J,W)+FLOWIN(J,I,W)*24*3.6) .LE. (Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))*24*3.6)) THEN		! discharge more than the water amount in reservoir (case 2)                    
-                                FLOWOUT(J,I,W) =(VOL(J,I,W)-VDEAD(J,W))/24/3.6+FLOWIN(J,I,W)											! discharge all of water in the reservoir
-                            ELSE	! (case 3)
-                                FLOWOUT(J,I,W) = Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))
-                            END IF
-                        ELSE IF (VOL(J,I,W).GE. X3(J,W)) THEN 	! spilling
-                            IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))*24*3.6>(VOL(J,I,W))-VDEAD(J,W)) THEN		! discharge more than the water in reservoir (just to make sure)
-                                FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6										! discharge all of water in the reservoir
-                            ELSE IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))>QRESER(J,W)) THEN
-                                FLOWOUT(J,I,W) = QRESER(J,W)
-                            ELSE	 ! case 5
-                                FLOWOUT(J,I,W) = Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W))
-                            END IF
-                        ELSE ! releasing
-                            IF (Demand(J,W)*24*3.6>(VOL(J,I,W)-VDEAD(J,W))) THEN
-                                FLOWOUT(J,I,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6
-                            ELSE
-                                FLOWOUT(J,I,W) = Demand(J,W)			! case 4
-                            END IF
-                        END IF
-                        IF (FLOWOUT(J,I,W)>QRESER(J,W)) THEN			! double check just in case users chose unrealistic x1 and x4
-                            FLOWOUT(J,I,W) = QRESER(J,W)
-                        END IF
-                        VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W)-FLOWOUT(J,I,W))*24*3.6
-                        GOTO 123
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
-c     STEP 5-6: Reservoir Operation using Strategy 6
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                    ELSE IF (RULE(J,W) .EQ. 6) THEN
-                        IF (FLOWIN(J,I,W)-(OP6(J,I+STARTDAY(J,W),W)-VOL(J,I,W))/24/3.6 >0) THEN
-                            VOL(J,I+1,W) = OP6(J,I+STARTDAY(J,W),W)
-                            FLOWOUT(J,I,W) = FLOWIN(J,I,W)-(VOL(J,I+1,W)-VOL(J,I,W))/24/3.6
-                            
-                        ELSE
-                            FLOWOUT(J,I,W) = Qmin(J,I,W)
-                            VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W)-FLOWOUT(J,I,W))*24*3.6
-                        END IF
-                        GOTO 123
- 123                END IF   ! End of Loop for Operation Strategies (Step 5)
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
-c     STEP 5-7: Calculate Reservoir Variables considering Irrigation and Seepage
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                    ! Check if there are any negative values
-                    IF (ENERGYPRO(J,I,W)<0) THEN
-                        ENERGYPRO(J,I,W)=0
-                    END IF
-					IF (VOL(J,I,W)<0)THEN ! Not allow dropping below the minimum water level (mostly due to evaporation)
-                        VOL(J,I,W)=0
-                    END IF
-c                   ! Check the neccesity to spill water
-                    IF (VOL(J,I+1,W)>VRESER(J,W,I)) THEN
-                        FLOWOUT(J,I,W) = FLOWOUT(J,I,W)+(VOL(J,I+1,W)-VRESER(J,W,I))/24/3.6
-                        VOL(J,I+1,W) = VRESER(J,W,I)
-                    END IF
-
-	 				! Checking conditions for outflow 
-                    IF (FLOWOUT(J,I,W)<Qmin(J,I,W)) THEN    ! Check for minimum environmental flow
-                        FLOWOUT(J,I,W)=Qmin(J,I,W)
-                    END IF
+ c               !SAVE RESFLOWS TO READ THEM LATER    
+                 IF (STEPBYSTEP) THEN
+                     RESFLOWSTRING= trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt')
+                     open(71, FILE = NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING, status='unknown')
+                 ELSE
+                     RESFLOWSTRING = trim(trim('NF'//trim(ADJUSTL(WTEMP)))//'.txt')
+                     open(71, FILE = NF_PATH(1:NF_CLEN)//RESFLOWSTRING, status='unknown')
+                 ENDIF
+                 DO N = 1,NORESERVOIRS(W)
+                     WRITE(71, *) (RESFLOWS(N,K,W), K = 1,NDAY)
+                 ENDDO
+                 close(71)
+ c               !READ RESFLOWS
+                 ! IF (STEPBYSTEP) THEN
+                 !     open(72, FILE=NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING, status='old',ERR=9004)
+                 ! ELSE
+                 !     open(72, FILE=NF_PATH(1:NF_CLEN)//RESFLOWSTRING, status='old',ERR=9004)
+                 ! ENDIF
+                 ! DO N = 1, NORESERVOIRS(W)
+                 !     READ(72, *) (RESFLOWS(N,K,W), K = 1, NDAY)
+                 ! ENDDO
+                 ! close(72)             
+             ENDIF
+        
+             
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+ c     STEP 3: Initiate Reservoir Variables (Fluxes and States) and Read Reservoir Parameters
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------                                    
+             IF (STEPBYSTEP) THEN
+                ! I = 1,2            ! only one step to run and next step to save I+1 step variables
+                 DO I = 1, 2
+                     DO J = 1, NORESERVOIRS(W)-1
+                         FLOWIN(J,I,W) = 0
+                         !FLOWOUT(J,I,W) = 0
+                         Qmin(J,I,W) = 0
+                         VOL(J,I,W) = 0
+                         ENERGYPRO(J,I,W) = 0
+                         HTK(J,I,W) = 0
+                     END DO
+                 END DO
+                 IF ((NDAY_SIM.GT.1) .OR. (COUPLER_ITERATION.GT.1)) THEN
+                     write(W_STR,10) W ! convert integer to string to be able to concatenate in filename with strings
+                     write(NDAY_SIM_STR,10) NDAY_SIM
+                     storage_filename='RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt'
+                     open(99,FILE = OUTPATH(1:OUT_CLEN)//'/stepbystep/'//storage_filename,STATUS='OLD',ERR=9004)
+                     READ(99, *) (VOL(J,1,W), J = 1, NORESERVOIRS(W))
+                     close(99)
+                 END IF  
+             ELSE ! Not STEPBYSTEP Version 
+                 DO I = 1, NDAY
+                     DO J = 1, NORESERVOIRS(W)-1
+                         FLOWIN(J,I,W) = 0
+                         FLOWOUT(J,I,W) = 0
+                         Qmin(J,I,W) = 0
+                         VOL(J,I,W) = 0
+                         ENERGYPRO(J,I,W) = 0
+                         HTK(J,I,W) = 0
+                     END DO
+                 END DO
+             ENDIF
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+ c     STEP 4: Read Reservoir Parameters
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------                         
+ !           Read reservoir characteristics/parameters from input file (/Reservoirs/res1.txt, /Reservoirs/res2.txt,...)
+             print*, 'Reading Reservoir Parameters.....'
+             DO  J  = 1, NORESERVOIRS(W)-1
+                 WRITE(CHUOI(W),*) RES_DIRECT(J,1,W)
+                 TEMPRPATH(W) = trim(RPATH)//"res"//trim(ADJUSTL(CHUOI(W)))//".txt"
+                 OPEN(25, FILE = TEMPRPATH(W),FORM = 'FORMATTED',
+      &          STATUS='OLD',ERR=9002)
+                 READ(25,*)  
+                 READ(25,*) HRESERMAX(J,W),HRESERMIN(J,W),VRESERTHAT(J,W),VDEAD(J,W),
+      &          HYDRAUHEAD(J,W), QRESERTHAT(J,W), OPEYEAR(J,W), VINITIAL(J,W)
+                 READ(25,*)
+                 READ(25,*) SEEPAGE(J,W), INFILTRATION(J,W)
+                 READ(25,*)
+                 READ(25,*) WITHIRRIGATION(J,W)
+                 READ(25,'(A)') IPATH(W)
+                 READ(25,*)
+                 ! convert units of storage to m3
+                 !VRESERTHAT(J,W)=VRESERTHAT(J,W)*1000
+                 !VDEAD(J,W)=VDEAD(J,W)*1000
+                 !VINITIAL(J,W)=VINITIAL(J,W)*1000
+                 IF (WITHIRRIGATION(J,W) .EQ. 0) THEN
+                     DO L = 1, DAYS-1
+                         IRRIGATION(J,L) = 0
+                     END DO
+                 ELSE IF (WITHIRRIGATION(J,W) .EQ. 1) THEN
+                     OPEN(27, FILE = IPATH(W),FORM = 'FORMATTED',STATUS='OLD',ERR=9003)
+                     READ(27,*)
+                     READ(27,*) NOOFROW(W)
+                     READ(27,*)
+                     DO L = 1, NOOFROW(W)
+                         READ(27,*) IRRIGATION(J,L)
+                     END DO
+                     CLOSE(27)
+                 END IF
+                 READ(25,*) HYDROPOWER_TYPE(J,W)  ! Read the HYDROPOWER_TYPE of reservoir (0: ROR - 1:STR)  0: Run of the River Hydropower or 1: Storage Reservoir Hydropower 
+                 READ(25,*) HYDROPOWER_GENERATOR(J,W)  ! Read the HYDROPOWER_GENERATOR of reservoir operation; constrained by hydropower or not (HYDROPOWER_GENERATOR=1 -> Generators ON / HYDROPOWER_GENERATOR=0 -> Disconnect turbines from generators)
+                 READ(25,*)
+                 READ(25,*) ENV_FLOW(J,W)  ! Read the percentage of environmental flow (% of maximum flow)
+                 READ(25,*)
+                 READ(25,*) RULE(J,W)
+                 IF (RULE(J,W) .EQ. 0) THEN ! run of the river dam
+                     READ(25,*) Dummy
+                 END IF
+                 IF (RULE(J,W) .EQ. 1) THEN ! simplified rule curve
+                     READ(25,*) HMAX(J,W), HMIN(J,W), OP1(J,1,W),OP1(J,2,W)
+                     IF (HMAX(J,W) .LT. HMIN(J,W)) THEN
+                         TEMP=HMAX(J,W)
+                         HMAX(J,W)=HMIN(J,W)
+                         HMIN(J,W)=TEMP
+                     ENDIF
+                 ELSE IF (RULE(J,W) .EQ. 2) THEN ! rule curve
+                     READ(25,*) RESLV(J,1,W), RESLV(J,2,W), RESLV(J,3,W), RESLV(J,4,W), RESLV(J,5,W), RESLV(J,6,W),
+      &              RESLV(J,7,W), RESLV(J,8,W), RESLV(J,9,W), RESLV(J,10,W), RESLV(J,11,W), RESLV(J,12,W)
+                 ELSE IF (RULE(J,W) .EQ. 3) THEN ! operating rule
+                     READ(25,*) Demand(J,W), X1(J,W), X2(J,W), X3(J,W), X4(J,W)
+                 ELSE IF (RULE(J,W) .EQ. 4) THEN! predefined time-series of release
+                     READ(25,'(A)')FILENAME
+                     PATHRES3 = trim(trim(ADJUSTL(FILENAME)))
+                         print*,'Predefined Time Series of Release:', PATHRES3
+                     OPEN(26, FILE = PATHRES3,FORM = 'FORMATTED',ERR=9002)
+                     READ(26,*) NO_OF_ROW(J,W) 						! Read the number of rows of reservoir J th
+                     DO L = 1, NO_OF_ROW(J,W)
+                         READ(26,*) YEAR(J,L,W), MONTH(J,L,W), DAY(J,L,W), OP4(J,L,W)
+                         IF ((YEAR(J,L,W) .EQ. START_YEAR) .AND. (MONTH(J,L,W) .EQ. START_MO) .AND. (DAY(J,L,W) .EQ. 1)) THEN
+                             STARTDAY(J,W) = L-1							! If the time-series is shorter than the simulation period (release = 0); Changed to "L-1" instead of "L" so STARDAY=0 if time series starts with simulation period
+                         END IF
+                     END DO
+                     CLOSE(26)
+                 ELSE IF (RULE(J,W) .EQ. 5) THEN
+                     DO L = 1, 12
+                         READ(25,*) DEMAND5(J,L,W), OP5X1(J,L,W), OP5X2(J,L,W), OP5X3(J,L,W), OP5X4(J,L,W)
+                     END DO
+                 ELSE IF (RULE(J,W) .EQ. 6) THEN  !predefined time-series of storage
+                     READ(25,'(A)')FILENAME
+                     PATHRES3 = trim(trim(ADJUSTL(FILENAME)))
+                         print*,'Predefined Time Series of Storage:', PATHRES3
+                     OPEN(27, FILE = PATHRES3,FORM = 'FORMATTED',ERR=9002)
+                     READ(27,*) NO_OF_ROW(J,W) 						! Read the number of rows of reservoir J th
+                     DO L = 1, NO_OF_ROW(J,W)
+                         READ(27,*) YEAR(J,L,W), MONTH(J,L,W), DAY(J,L,W), OP6(J,L,W)
+                         IF ((YEAR(J,L,W) .EQ. START_YEAR) .AND. (MONTH(J,L,W) .EQ. START_MO) .AND. (DAY(J,L,W) .EQ. 1)) THEN
+                             STARTDAY(J,W) = L-1							! If the time-series is shorter than the simulation period (storage = 0); Changed to "L-1" instead of "L" so STARDAY=0 if time series starts with simulation period
+                         END IF
+                     END DO
+                     CLOSE(27)
+                 END IF
+                 ! Read Bathymetry Parameters
+                 READ(25,*)
+                 READ(25,*) BTHMET_ACTIVE(J,W)
+                 !######################## Calculate the bottom level of reservoir [H0] [Volume =Zero]
+                 IF (BTHMET_ACTIVE(J,W).EQ.1) THEN
+                     READ(25,*) BTHMET_A(J,W), BTHMET_B(J,W),BTHMET_C(J,W),BTHMET_D(J,W)
+                     H0(J,W)=BTHMET_A(J,W)/(1+BTHMET_D(J,W))   ! Volume =Zero in the Fitting Equation
+                 ELSE
+                     KFACTOR(W) = SQRT(VDEAD(J,W)/VRESERTHAT(J,W))							! calculate the bottom level of reservoir
+                     H0(J,W) = (KFACTOR(W)*HRESERMAX(J,W) - HRESERMIN(J,W))/(KFACTOR(W)-1)		! pyramid shape reservoir
+                     !H0(J,W) = (HRESERMAX(J,W)-HRESERMIN(J,W)*(VRESERTHAT(J,W)+VDEAD(J,W))/VDEAD(J,W))/(1-(VRESERTHAT(J,W)+VDEAD(J,W))/VDEAD(J,W))    !This actually performs better, but we will fix the problem of H0 with reservoirs bathimetry
+                 ENDIF
+                 CLOSE(25)
+                  
+                 IF (CURRENTYEAR>=OPEYEAR(J,W)) THEN
+                     IF (STEPBYSTEP .AND. ((NDAY_SIM.GT.1) .OR. (COUPLER_ITERATION.GT.1))) THEN   ! CURRENTYEAR=START_YEAR; do we need to change this condition for the case when NDAY_SIM>1 but CURRENTYEAR>=OPEYEAR, then we need to assign VOL=Vinitial?
+                         print*,'Read the storage volume from the previous time step'
+                     ELSE
+                         VOL(J,1,W) = VINITIAL(J,W)
+                     ENDIF 
+                 ELSE 
+                     VOL(J,1,W) = 0.001
+                 END IF
+             END DO   ! End of J Loop for NORESERVOIRS [Line 916]
+         END DO        ! End of W Loop for NSTATIONS [Line 790]
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------            
+ c     STEP 5: Reservoir Modeling Considering Operating Curve
+ c------------------------------------------------------------------------------------------------------------------------------------------------------------------             
+         print*, 'Reservoir Modeling Considering Operating Curve.....'
+         IF (STEPBYSTEP) THEN
+            STEPS = 1            ! only one step to run
+         ELSE
+            STEPS=NDAY
+         ENDIF
+         !LOOP OVER TIMESTEPS
+         DO I = 1, STEPS
+             IF (STEPBYSTEP) THEN
+                 II=NDAY_SIM    ! II=index of simulated day 
+             ELSE
+                 II=I    ! II=same as the steps (NDAY)
+             ENDIF   
+             !LOOP OVER STATIONS AND  RESERVOIRS FOR OPERATING CURVE  
+             DO W=1, NSTATIONS
+                 DO J = 1, NORESERVOIRS(W)-1
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
+ c     STEP 5-1: Check if the reservoir has started operation (reaching the year of construction) 
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                     CURRENTYEAR = START_YEAR + INT(II/365)		! approximate, does not consider leap years
+                     IF (CURRENTYEAR>=OPEYEAR(J,W)) THEN
+                         VRESER(J,W,I) = (VRESERTHAT(J,W)+VDEAD(J,W))  
+                         REALHEAD(J,W) = HYDRAUHEAD(J,W)
+                         QRESER(J,W) = QRESERTHAT(J,W)    
+                     ELSE
+                         GOTO 125
+                     END IF
+                     ! Consider Inflow = Naturalized Flow
+                     FLOWIN(J,I,W) = RESFLOWS(J,II,W)     ! change here I (step) to II (simulated day)
+                     
+                     ! Considering Environmental Flow (Minimum Flow = 10% of mean flow or ~ 5% of the Qmax=QRESER)
+                     Qmin(J,I,W)=ENV_FLOW(J,W) * QRESERTHAT(J,W)
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
+ c     STEP 5-2: Reservoir Operation using Strategy 1 or 2 
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                     !Calculate the designed water level
+                     !Note RULE = 1: simplified rule curve - 2: rule curve - 3: operating rules: - 4 pre-defined time-series data - 5 12 month operating rule
+                     CRTDATE = INT(1.0* mod(II,365)+(START_MO-1)*30)						! approximate
+                     IF ((RULE(J,W) .EQ. 1) .or. (RULE(J,W) .EQ. 2)) THEN   ! (Options 1 and 2: rule curves)
+                         IF (CURRENTYEAR<OPEYEAR(J,W)) THEN
+                             FLOWOUT(J,II,W) = FLOWIN(J,I,W)
+                             VOL(J,I+1,W) = VOL(J,I,W)
+                             GOTO 123
+                         END IF
+                         IF (RULE(J,W) .EQ. 1) THEN
+                             IF (OP1(J,1,W)>OP1(J,2,W)) THEN
+                             ! Caculate target water level
+                                 IF ((CRTDATE .GT. OP1(J,2,W)) .and. (CRTDATE .LT. OP1(J,1,W))) THEN     ! OP1 are the time T1 and T2 at which predefined maximum (HMAX) and minimum (HMIN) levels are reached
+                                     DESIGNWL(W)=(CRTDATE-OP1(J,2,W))/(OP1(J,1,W)-OP1(J,2,W))*(HMAX(J,W)-HMIN(J,W))
+                                 ELSE IF (CRTDATE .GE. OP1(J,1,W)) THEN 
+                                     DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))
+      &                                  -(CRTDATE-OP1(J,1,W))/(365-OP1(J,1,W)+OP1(J,2,W))*
+      &                                  (HMAX(J,W)-HMIN(J,W))
+                                 ELSE
+                                     DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))
+      &                              -(CRTDATE+365-OP1(J,1,W))/(365-OP1(J,1,W)+OP1(J,2,W))*
+      &                              (HMAX(J,W)-HMIN(J,W))
+                                 ENDIF
+                             ELSE
+                                 IF ((CRTDATE .GT. OP1(J,1,W)) .and. (CRTDATE .LT. OP1(J,2,W))) THEN
+                                     DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))-(CRTDATE-OP1(J,1,W))/(OP1(J,2,W)-OP1(J,1,W))*(HMAX(J,W)-HMIN(J,W))
+                                 ELSE IF (CRTDATE .GE. OP1(J,2,W)) THEN 
+                                     DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))/(365-OP1(J,2,W)+OP1(J,1,W))*(CRTDATE-OP1(J,2,W))
+                                 ELSE 
+                                     DESIGNWL(W)=(HMAX(J,W)-HMIN(J,W))/(365-OP1(J,2,W)+OP1(J,1,W))*
+      &                              (CRTDATE-OP1(J,1,W))+(HMAX(J,W)-HMIN(J,W))
+                                 ENDIF
+                             END IF
+                             DESIGNWL(W) = DESIGNWL(W) + (HMIN(J,W) - H0(J,W))
+                         ELSE   ! Operation Rule #2
+                             DESIGNWL(W) = RESLV(J,CAL_MONTH(CRTDATE),W)
+                             DESIGNWL(W) = DESIGNWL(W) - H0(J,W)
+                         ENDIF
+                         HTK(J,I,W) = DESIGNWL(W) + H0(J,W)													! water elevation
+                         !Calculate the Water Level using Pyramid Shape of bathymetry or provided Parameters
+                         IF (BTHMET_ACTIVE(J,W).EQ.1) THEN
+                             CURRENTWL(W)=BTHMET_A(J,W)/(EXP(-1*VOL(J,I,W)/1000*BTHMET_B(J,W))+VOL(J,I,W)/1000*BTHMET_C(J,W)+BTHMET_D(J,W))   ! Fitting Equation by Shanti [convert volume from 1000M3 to MCM]
+                         ELSE
+                             CURRENTWL(W) = VOL(J,I,W) * (HRESERMAX(J,W)-H0(J,W))/VRESER(J,W,I)
+                         ENDIF
+ 
+                         !!!!!!!!NEW 
+                         !===========================================================
+                         ! Compute Lower and Upper Rule Curves
+                         ! Fractional offset from HMIN / HMAX
+                         !===========================================================
+                                
+                         LowerCurveFactor=0.80     ! fraction toward target for LRC
+                         UpperCurveFactor=0.80     ! fraction toward target for URC
+                         ! Lower Rule Curve (water level)
+                         LRC_WL(J,I,W) = HMIN(J,W) + LowerCurveFactor * (HTK(J,I,W) - HMIN(J,W))
+ 
+                         ! Upper Rule Curve (water level)
+                         URC_WL(J,I,W) = HMAX(J,W) - UpperCurveFactor * (HMAX(J,W) - HTK(J,I,W))
+                                             
+                         !===========================================================
+                         ! Convert WL-based rule curves to STORAGE-based curves
+                         !===========================================================
+ 
+                         LRC_VOL(J,I,W) = (LRC_WL(J,I,W)- H0(J,W)) * VRESER(J,W,I) / (HRESERMAX(J,W) - H0(J,W))
+                         URC_VOL(J,I,W) = (URC_WL(J,I,W)- H0(J,W)) * VRESER(J,W,I) / (HRESERMAX(J,W) - H0(J,W))
+ 
+                         
+                         IF (VOL(J,I,W) > URC_VOL(J,I,W)) THEN
+                             ! Above upper curve: must release to draw down
+                             VOL(J,I+1,W) = URC_VOL(J,I,W)
+                             FLOWOUT(J,II,W)= (VOL(J,I,W) + FLOWIN(J,I,W)*24*3.6 - URC_VOL(J,I,W)) / 24/3.6    ! m3/sec
+                             FLOWOUT_TURB(J,II,W) = MIN(MAX(FLOWOUT(J,II,W), Qmin(J,I,W)), QRESER(J,W))
+                             GOTO 123
+                         
+                         ELSEIF (VOL(J,I,W) < LRC_VOL(J,I,W)) THEN
+                             ! Below lower curve: must conserve
+                             FLOWOUT(J,II,W) = Qmin(J,I,W)
+                             FLOWOUT_TURB(J,II,W) = Qmin(J,I,W)
+                             VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W) - FLOWOUT_TURB(J,II,W))*24*3.6
+                             GOTO 123
+                         
+                         ELSE
+                             ! Inside band: provide release following the reservoir filling/emptying rate
+                             RC_SLOPE=(VRESER(J,W,I) - VDEAD(J,W)) / (OP1(J,1,W)-OP1(J,2,W))    ! slope of rule curve for (smax-smin)/(tmax-tmin)
+                             IF ((CRTDATE .GT. OP1(J,2,W)) .and. (CRTDATE .LT. OP1(J,1,W))) THEN    ! current date between tmin and tmax so it is filling season
+                                 VOL(J,I+1,W)=VOL(J,I,W) + RC_SLOPE
+                             ELSE
+                                 VOL(J,I+1,W)=VOL(J,I,W) - RC_SLOPE
+                             END IF
+                             ! Provisional release needed to follow slope (not target)
+                             FLOWOUT(J,II,W)=(VOL(J,I,W)-VOL(J,I+1,W))/24/3.6+ FLOWIN(J,I,W)
+                             FLOWOUT_TURB(J,II,W) = MIN(MAX(FLOWOUT(J,II,W), Qmin(J,I,W)), QRESER(J,W))
+                             !VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W) - FLOWOUT_TURB(J,II,W))*24*3.6
+                             GOTO 123
+                         END IF
+                             
+ 
+ 
+ 
+                         ! Check Zones/Cases of Rule Curve 
+     !                     IF (CURRENTWL(W)>=DESIGNWL(W)) THEN											! Zone 3
+     !                         IF ((VOL(J,I,W)+FLOWIN(J,I,W)*24*3.6 -QRESER(J,W)*24*3.6)						! Case 2
+     !  &                              >(DESIGNWL(W)* VRESER(J,W,I)) /(HRESERMAX(J,W)-H0(J,W))) THEN
+     !                             VOL(J,I+1,W) = VOL(J,I,W) + FLOWIN(J,I,W)*24*3.6-QRESER(J,W)*24*3.6
+     !                             FLOWOUT(J,II,W) = QRESER(J,W)
+     !                             FLOWOUT_TURB(J,II,W)=FLOWOUT(J,II,W)
+     !                             !VOL(J,I+1,W)=(DESIGNWL(W)*VRESER(J,W,I))/(HRESERMAX(J,W)-H0(J,W))  ! from Shanti Version (no need for this line: bug fixed by Bruno)
+                                 
+     !                         ELSE																	! Case 1
+     !                             VOL(J,I+1,W)=(DESIGNWL(W)*VRESER(J,W,I))/(HRESERMAX(J,W)-H0(J,W))
+     !                             FLOWOUT(J,II,W)=(VOL(J,I,W)-VOL(J,I+1,W))/24/3.6+ FLOWIN(J,I,W)
+     !                             FLOWOUT_TURB(J,II,W)=FLOWOUT(J,II,W)
+     !                         END IF
+     !                         GOTO 123   ! Done with the Operating Curve
+     !                     ELSE																		! Zone 2
+     !                         IF ((VOL(J,I,W)+FLOWIN(J,I,W)*24*3.6)>((DESIGNWL(W)* VRESER(J,W,I))				! Case 2
+     !  &                              /(HRESERMAX(J,W)-H0(J,W)))) THEN
+     !                             VOL(J,I+1,W)=(DESIGNWL(W) * VRESER(J,W,I))/(HRESERMAX(J,W)-H0(J,W))
+     !                             FLOWOUT(J,II,W)=FLOWIN(J,I,W)-(VOL(J,I+1,W)-VOL(J,I,W))/24/3.6
+     !                             FLOWOUT_TURB(J,II,W)=FLOWOUT(J,II,W)
+     !                             IF (FLOWOUT_TURB(J,II,W)>QRESER(J,W)) THEN
+     !                                 !VOL(J,I+1,W)=VOL(J,I+1,W)+(FLOWOUT_TURB(J,II,W)-QRESER(J,W))*24*3.6
+     !                                 FLOWOUT_TURB(J,II,W) = QRESER(J,W)          ! Keep FLOWOUT same as it includes the spillway flow
+     !                             END IF
+     !                             GOTO 123
+     !                         ELSE																	! Case 1 (this case covers Zone 1 + Zone 2 case 1)
+     !                             VOL(J,I+1,W) = VOL(J,I,W) + FLOWIN(J,I,W)*24*3.6
+     !                             FLOWOUT(J,II,W) = Qmin(J,I,W)
+     !                             FLOWOUT_TURB(J,II,W)=FLOWOUT(J,II,W)
+     !                             GOTO 123
+     !                         END IF
+     !                     END IF
+                         
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
+ c     STEP 5-3: Reservoir Operation using Strategy 3 
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx                    
+                     ELSE IF (RULE(J,W) .EQ. 3) THEN ! opearting rule (Option 3)
+                         ! Note x1 and x4 in radian (0 to pi/2), not degree
+                         IF (VOL(J,I,W) < VDEAD(J,W)) THEN ! below dead water level
+                             FLOWOUT(J,II,W) = 0																					! case 1
+                         ELSE IF (VOL(J,I,W) .LE. X2(J,W)) THEN ! hedging
+                             IF ((VOL(J,I,W)-VDEAD(J,W)+FLOWIN(J,I,W)*24*3.6) .LE. (Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))*24*3.6)) THEN		! discharge more than the water amount in reservoir (case 2)
+                                 FLOWOUT(J,II,W) =(VOL(J,I,W)-VDEAD(J,W))/24/3.6+FLOWIN(J,I,W)											! discharge all of water in the reservoir
+                             ELSE	! (case 3)
+                                 FLOWOUT(J,II,W) = Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))
+                             END IF
+                         ELSE IF (VOL(J,I,W).GE. X3(J,W)) THEN 	! spilling
+                             IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))*24*3.6>(VOL(J,I,W))-VDEAD(J,W)) THEN		! discharge more than the water in reservoir (just to make sure)
+                                 FLOWOUT(J,II,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6										! discharge all of water in the reservoir
+                             ELSE IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))>QRESER(J,W)) THEN
+                                 FLOWOUT(J,II,W) = QRESER(J,W)
+                             ELSE	 ! case 5
+                                 FLOWOUT(J,II,W) = Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W))
+                             END IF
+                         ELSE ! releasing
+                             IF (Demand(J,W)*24*3.6>(VOL(J,I,W)-VDEAD(J,W))) THEN
+                                 FLOWOUT(J,II,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6
+                             ELSE
+                                 FLOWOUT(J,II,W) = Demand(J,W)			! case 4
+                             END IF
+                         END IF
+                         FLOWOUT_TURB(J,II,W)=FLOWOUT(J,II,W)
+                         IF (FLOWOUT_TURB(J,II,W)>QRESER(J,W)) THEN			! double check just in case users chose unrealistic x1 and x4
+                             FLOWOUT_TURB(J,II,W) = QRESER(J,W)
+                         END IF
+                         VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W)-FLOWOUT(J,II,W))*24*3.6
+                         
+                         GOTO 123
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
+ c     STEP 5-4: Reservoir Operation using Strategy 4
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                     ELSE IF (RULE(J,W) .EQ. 4) THEN! pre-defined time series (Option 4)
+                         IF ((OP4(J,I+STARTDAY(J,W),W) .GT. QRESER(J,W)) .AND. (VOL(J,I,W) .LT. VRESER(J,W,I))) THEN
+                             OP4(J,I+STARTDAY(J,W),W) = QRESER(J,W)
+                         END IF
+                         IF (OP4(J,I+STARTDAY(J,W),W)*24*3.6 .GT.((VOL(J,I,W)-VDEAD(J,W)))+FLOWIN(J,I,W)*24*3.6) THEN
+                             FLOWOUT_TURB(J,II,W) =(VOL(J,I,W)-VDEAD(J,W))/24/3.6 + FLOWIN(J,I,W)    ! Maximum flow that can be released (inflow + storage)
+                         ELSE
+                             FLOWOUT_TURB(J,II,W) = OP4(J,I+STARTDAY(J,W),W)
+                         END IF
+                         IF (FLOWOUT_TURB(J,II,W)<0) THEN
+                             FLOWOUT_TURB(J,II,W)=0
+                         END IF
+                         
+                         
+                         VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W)-FLOWOUT_TURB(J,II,W))*24*3.6
+                         ! Checking conditions for outflow 
+                         IF (FLOWOUT_TURB(J,II,W)>QRESER(J,W)) THEN  ! turbine + spillway flow
+                             FLOWOUT_TURB(J,II,W) = QRESER(J,W)
+                         END IF
+                         GOTO 123
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
+ c     STEP 5-5: Reservoir Operation using Strategy 5
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                     ELSE IF (RULE(J,W) .EQ. 5) THEN ! note: this option is similar to OP3 but for a periodic demand
+                     ! Note x1 and x4 in radian (0 to pi/2), not degree, this part can be shorthen
+                         X1(J,W) = OP5X1(J,CAL_MONTH(CRTDATE),W)
+                         X2(J,W) = OP5X2(J,CAL_MONTH(CRTDATE),W)
+                         X3(J,W) = OP5X3(J,CAL_MONTH(CRTDATE),W)
+                         X4(J,W) = OP5X4(J,CAL_MONTH(CRTDATE),W)
+                         Demand(J,W) = DEMAND5(J,CAL_MONTH(CRTDATE),W)
+                         IF (VOL(J,I,W) < VDEAD(J,W)) THEN ! below dead water level
+                             FLOWOUT(J,II,W) = 0																					! case 1
+                         ELSE IF (VOL(J,I,W) .LE. X2(J,W)) THEN ! hedging
+                             IF ((VOL(J,I,W)-VDEAD(J,W)+FLOWIN(J,I,W)*24*3.6) .LE. (Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))*24*3.6)) THEN		! discharge more than the water amount in reservoir (case 2)                    
+                                 FLOWOUT(J,II,W) =(VOL(J,I,W)-VDEAD(J,W))/24/3.6+FLOWIN(J,I,W)											! discharge all of water in the reservoir
+                             ELSE	! (case 3)
+                                 FLOWOUT(J,II,W) = Demand(J,W)+(VOL(J,I,W)-X2(J,W))*tan(X1(J,W))
+                             END IF
+                         ELSE IF (VOL(J,I,W).GE. X3(J,W)) THEN 	! spilling
+                             IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))*24*3.6>(VOL(J,I,W))-VDEAD(J,W)) THEN		! discharge more than the water in reservoir (just to make sure)
+                                 FLOWOUT(J,II,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6										! discharge all of water in the reservoir
+                             ELSE IF ((Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W)))>QRESER(J,W)) THEN
+                                 FLOWOUT(J,II,W) = QRESER(J,W)
+                             ELSE	 ! case 5
+                                 FLOWOUT(J,II,W) = Demand(J,W) + (VOL(J,I,W)-X3(J,W))*tan(X4(J,W))
+                             END IF
+                         ELSE ! releasing
+                             IF (Demand(J,W)*24*3.6>(VOL(J,I,W)-VDEAD(J,W))) THEN
+                                 FLOWOUT(J,II,W) = (VOL(J,I,W)-VDEAD(J,W))/24/3.6
+                             ELSE
+                                 FLOWOUT(J,II,W) = Demand(J,W)			! case 4
+                             END IF
+                         END IF
+                         FLOWOUT_TURB(J,II,W)=FLOWOUT(J,II,W)
+                         IF (FLOWOUT_TURB(J,II,W)>QRESER(J,W)) THEN			! double check just in case users chose unrealistic x1 and x4
+                             FLOWOUT_TURB(J,II,W) = QRESER(J,W)
+                         END IF
+                         VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W)-FLOWOUT(J,II,W))*24*3.6
+                         
+                         GOTO 123
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
+ c     STEP 5-6: Reservoir Operation using Strategy 6
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                     ELSE IF (RULE(J,W) .EQ. 6) THEN
+                         IF (FLOWIN(J,I,W)-(OP6(J,I+STARTDAY(J,W),W)-VOL(J,I,W))/24/3.6 >0) THEN
+                             VOL(J,I+1,W) = OP6(J,I+STARTDAY(J,W),W)
+                             FLOWOUT(J,II,W) = FLOWIN(J,I,W)-(VOL(J,I+1,W)-VOL(J,I,W))/24/3.6
+                             
+                         ELSE
+                             FLOWOUT(J,II,W) = Qmin(J,I,W)
+                             VOL(J,I+1,W) = VOL(J,I,W) + (FLOWIN(J,I,W)-FLOWOUT(J,II,W))*24*3.6
+                         END IF
+                         FLOWOUT_TURB(J,II,W)=FLOWOUT(J,II,W)
+                         ! Checking conditions for outflow 
+                         IF (FLOWOUT_TURB(J,II,W)>QRESER(J,W)) THEN  ! turbine + spillway flow
+                             FLOWOUT_TURB(J,II,W) = QRESER(J,W)
+                         END IF
+                         GOTO 123
+  123                END IF   ! End of Loop for Operation Strategies (Step 5)
+ 
+                         
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
+ c     STEP 5-7: Calculate Reservoir Variables considering Irrigation and Seepage
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                     ! Check if there are any negative values
+                     IF (ENERGYPRO(J,I,W)<0) THEN
+                         ENERGYPRO(J,I,W)=0
+                     END IF
+                     
+                     ! Check the neccesity to spill water
+                     IF (VOL(J,I+1,W)>VRESER(J,W,I)) THEN
+                         VOL(J,I+1,W) = VRESER(J,W,I)
+                         FLOWOUT(J,II,W) = FLOWOUT_TURB(J,II,W)+(VOL(J,I+1,W)-VRESER(J,W,I))/24/3.6
+                     ELSE
+                         FLOWOUT(J,II,W) = FLOWOUT_TURB(J,II,W)
+                     END IF
+ 
+                     IF (VOL(J,I,W)<0)THEN ! Not allow dropping below the minimum water level (mostly due to evaporation)
+                         VOL(J,I,W)=0
+                     END IF
+ 
+                     
+ 
+                     IF (FLOWOUT(J,II,W)<Qmin(J,I,W)) THEN    ! Check for minimum environmental flow
+                         FLOWOUT(J,II,W)=Qmin(J,I,W)
+                     END IF
+ 
+                     ! Checking conditions for turbine outflow
+                     IF (HYDROPOWER_GENERATOR(J,W) .EQ. 0) THEN
+                         FLOWOUT_TURB(J,II,W)=0.0     ! If the turbine is not connected to generator (generator shutdown)
+                     END IF  
+ 
+ 
+ c                   Remote water for irrigation
+                     IF (FLOWOUT(J,II,W)>=IRRIGATION(J,II)) THEN
+                         FLOWOUT(J,II,W) = FLOWOUT(J,II,W) - IRRIGATION(J,II)
+                     ELSE
+                         FLOWOUT(J,II,W) = Qmin(J,I,W)
+                     END IF
+ 
+                     
+                     ! Update water losses due to seepage and infiltration
+                     ! Infiltration is permanent losses + water seepage is added to outflow
+                     ! Note seepage occurs until there is no water left (considering dead volume also)
+                 
+                     IF (VOL(J,I+1,W) - (SEEPAGE(J,W)+INFILTRATION(J,W))*24*3.6 .GT. 0) THEN
+                         VOL(J,I+1,W) = VOL(J,I+1,W) - (SEEPAGE(J,W)+INFILTRATION(J,W))*24*3.6
+                     !Note that seepage does not contribute to energy production, so we add here
+                         FLOWOUT(J,II,W) = FLOWOUT(J,II,W) + SEEPAGE(J,W)
+                     ELSE
+                         VOL(J,I+1,W) = 0
+                     END IF
+                     
+ 
+                     HHO(J,I,W)=VOL(J,I,W)/VRESER(J,W,I)*(HRESERMAX(J,W)-H0(J,W))+H0(J,W)
+                     HHO(J,I+1,W)=VOL(J,I+1,W)/VRESER(J,W,I)* (HRESERMAX(J,W)-H0(J,W))+H0(J,W)
+                     ! Note: hydraulic head calculated from the maximum water level
+                     ! Calculate energy production
+                     ENERGYPRO(J,I,W) = 0.9 * 9.81 * FLOWOUT_TURB(J,II,W)*((HHO(J,I,W)+HHO(J,I+1,W))/2-(HRESERMAX(J,W)-REALHEAD(J,W)))/1000  ! this part is for hydropower production estimation, ignore if work with irrigation reservoirs   
+                     ! ENERGYPRO(J,I,W) = ENERGYPRO(J,I,W) *REALHEAD(J,W)/1000	  ! testing hydraulic head for hydropower	
+                     
                     
-c                   Remote water for irrigation
-                    IF (FLOWOUT(J,I,W)>=IRRIGATION(J,II)) THEN
-                        FLOWOUT(J,I,W) = FLOWOUT(J,I,W) - IRRIGATION(J,II)
-                    ELSE
-                        FLOWOUT(J,I,W) = Qmin(J,I,W)
-                    END IF
-
-					! Checking conditions for turbine outflow
-                    IF (HYDROPOWER_GENERATOR(J,W) .EQ. 1) THEN
-                        FLOWOUT_TURB(J,I,W)=FLOWOUT(J,I,W)   ! forcing the turbine release to be equal to the provided release in operation strategy 4 (otherwise flowout is going through changes due to changes in storage; if storage is greater than scap)
-                    ELSE
-                        FLOWOUT_TURB(J,I,W)=0.0     ! If the turbine is not connected to generator (generator shutdown)
-                    END IF    
-					
-					IF (FLOWOUT(J,I,W)>=QRESER(J,W)) THEN  ! turbine + spillway flow
-                        FLOWOUT_TURB(J,I,W) = QRESER(J,W)
-                    ELSE
-                        FLOWOUT_TURB(J,I,W) = FLOWOUT(J,I,W)
-                    END IF
+                     
+                     ! Set Hydrologic Budget (States & Fluxes) for ROR Dams (Run-of-the-River)
+                     IF (RULE(J,W) .EQ. 0) THEN
+                         !print*,'RUN-OF-THE-RIVER (ROR) DAM........'
+                         FLOWOUT(J,II,W) = FLOWIN(J,I,W)
+                         IF (FLOWOUT(J,II,W) .LE. Qmin(J,I,W)) THEN
+                             FLOWOUT(J,II,W) = Qmin(J,I,W)
+                         END IF
+                         IF (HYDROPOWER_GENERATOR(J,W) .EQ. 1) THEN
+                             FLOWOUT_TURB(J,II,W)=FLOWOUT(J,II,W)   
+                         ELSE
+                             FLOWOUT_TURB(J,II,W)=0.0     ! If the turbine is not connected to generator (generator shutdown)
+                         END IF    
+                         IF (FLOWOUT_TURB(J,II,W)>QRESER(J,W)) THEN  ! turbine + spillway flow
+                             FLOWOUT_TURB(J,II,W) = QRESER(J,W)
+                         END IF
+                     END IF
+                     IF ((RULE(J,W) .EQ. 0) .OR. (HYDROPOWER_TYPE(J,W) .EQ. 0)) THEN
+                         VOL(J,I+1,W) = VRESER(J,W,I)
+                         ENERGYPRO(J,I,W) = 0.9 * 9.81 * FLOWOUT_TURB(J,II,W)
+                         ENERGYPRO(J,I,W) = ENERGYPRO(J,I,W) *(REALHEAD(J,W))/1000
+                         HTK(J,I,W) = REALHEAD(J,W)
+                         HHO(J,I,W)= HRESERMAX(J,W)
+                         HHO(J,I+1,W)= HRESERMAX(J,W)
+                     END IF
+                     
+  
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
+ c     STEP 6: Propagate water to the downstream reservoir, considering the time lag
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                     
+  125                IF (CURRENTYEAR<OPEYEAR(J,W)) THEN
+                         FLOWIN(J,I,W) = RESFLOWS(J,II,W)
+                         FLOWOUT(J,II,W) = FLOWIN(J,I,W)
+                         VOL(J,I,W) =0
+                         ENERGYPRO(J,I,W) = 0
+                         HTK(J,I,W) = 0
+                         HHO(J,I,W) = 0
+                         VRESER(J,W,I) = 0 
+                         REALHEAD(J,W) = 0
+                         QRESER(J,W) = 0
+                         FLOWOUT_TURB(J,II,W)=0.0        
+                     END IF
+                     
+                     ! Reading UH_R files for reservoirs
+                     RESID=RES_DIRECT(J,1,W)
+                     DS_RESID=RES_DIRECT(J,2,W)
+                     WRITE(RESID_STR,10) RESID
+                     WRITE(DS_RESID_STR,10) DS_RESID
+                     ! check if the downstream reservoir is part of the current sub basin (not downstream of the outlet station)
+                     RES_IN_BASIN = .FALSE.
+                     DO K= 1, NORESERVOIRS(W)
+                         IF (RES_DIRECT(K,1,W) == DS_RESID) THEN
+                             RES_IN_BASIN = .TRUE.
+                             EXIT
+                         END IF
+                     END DO
+ 
                     
-                    ! Update water losses due to seepage and infiltration
-                    ! Infiltration is permanent losses + water seepage is added to outflow
-                    ! Note seepage occurs until there is no water left (considering dead volume also)
-                
-                    IF (VOL(J,I+1,W) - (SEEPAGE(J,W)+INFILTRATION(J,W))*24*3.6 .GT. 0) THEN
-                        VOL(J,I+1,W) = VOL(J,I+1,W) - (SEEPAGE(J,W)+INFILTRATION(J,W))*24*3.6
-                    !Note that seepage does not contribute to energy production, so we add here
-                        FLOWOUT(J,I,W) = FLOWOUT(J,I,W) + SEEPAGE(J,W)
-                    ELSE
-                        VOL(J,I+1,W) = 0
-                    END IF
+ 
+                     IF (DS_RESID>0 .AND. RES_IN_BASIN) THEN
+                         UH_NAME = 'RES'//trim(adjustl(RESID_STR))//"_"//'RES'//trim(adjustl(DS_RESID_STR))
+                         OPEN(22,file = UH_PATH(1:UH_CLEN)//trim(ADJUSTL(UH_NAME))//'.uh_r', status='old')
+                         READ(22, *) (UH_RR(1,K), K = 1,KE+UH_DAY-1)  
+                         CLOSE(22)
+                     ELSE
+                         UH_NAME = 'RES'//trim(adjustl(RESID_STR))//"_"//trim(adjustl(NAME5(W)))  
+                         OPEN(22,file = UH_PATH(1:UH_CLEN)//trim(ADJUSTL(UH_NAME))//'.uh_r', status='old')
+                         READ(22, *) (UH_RR(1,K), K = 1,KE+UH_DAY-1)  
+                         CLOSE(22)
+                     END IF        
+                     
+                     ! Find the index of the downstream reservoir --> RESORD(W)
+                     IF (DS_RESID > 0 .AND. RES_IN_BASIN) THEN
+                         DO K = 1, NORESERVOIRS(W)
+                             IF (RES_DIRECT(K,1,W) == DS_RESID) THEN
+                                 RESORD(W) = K
+                                 EXIT
+                             END IF
+                         END DO
+                     ELSE
+                         RESORD(W) = NORESERVOIRS(W)  ! Route to station
+                     END IF
+                     ! Added by HD-May25 to account for UH between reservoirs
+                     ! RESFLOWS(NORESERVOIRS(W),II,W) is the reservoir at the downstream reservoir.
+                     ! Update the flow for the downstream reservoir for the next time step (so the new upstream flow can be accounted for in the next step; this is because the J loop is happening here from downstream to upstream)
+                     
+                     DO KK = 1,KE+UH_DAY-1
+                         IF ((II-KK+1) .GE. 1) THEN 
+                             RESFLOWS(RESORD(W), II+1, W) = RESFLOWS(RESORD(W), II+1, W) + UH_RR(1, KK) * FLOWOUT(J, II-KK+1, W)
+                         END IF
+                     END DO
+ 
+                     ! Option to consider uniform UH with direct flow of runoff using the Travel Time
+                     !IF (RES_DIRECT(J,2,W) .EQ. 0) THEN  ! No downstream reservoirs
+                        ! RESFLOWS(NORESERVOIRS(W),II+1+INT(TRVLTIME(J,W)),W)= RESFLOWS(NORESERVOIRS(W),II+1+INT(TRVLTIME(J,W)),W) + FLOWOUT(J,I,W)     
+                     !ELSE
+                         !RESFLOWS(RESORD(W),II+1+INT(TRVLTIME(J,W)),W) =RESFLOWS(RESORD(W),II+1+INT(TRVLTIME(J,W)),W) + FLOWOUT(J,I,W)
+                     !END IF
+ 
                     
-
-                    HHO(J,I,W)=VOL(J,I,W)/VRESER(J,W,I)*(HRESERMAX(J,W)-H0(J,W))+H0(J,W)
-                    HHO(J,I+1,W)=VOL(J,I+1,W)/VRESER(J,W,I)* (HRESERMAX(J,W)-H0(J,W))+H0(J,W)
-                    ! Note: hydraulic head calculated from the maximum water level
-                    ! Calculate energy production
-                    ENERGYPRO(J,I,W) = 0.9 * 9.81 * FLOWOUT_TURB(J,I,W)*((HHO(J,I,W)+HHO(J,I+1,W))/2-(HRESERMAX(J,W)-REALHEAD(J,W)))/1000  ! this part is for hydropower production estimation, ignore if work with irrigation reservoirs   
-  		    
-
-      		    ! Set Hydrologic Budget (States & Fluxes) for ROR Dams (Run-of-the-River)
-                    IF (RULE(J,W) .EQ. 0) THEN
-                        print*,'RUN-OF-THE-RIVER (ROR) DAM........'
-                        FLOWOUT(J,I,W) = FLOWIN(J,I,W)
-                        IF (FLOWOUT(J,I,W) .LE. Qmin(J,I,W)) THEN
-                            FLOWOUT(J,I,W) = Qmin(J,I,W)
-                        END IF
-                        FLOWOUT_TURB(J,I,W) = FLOWOUT(J,I,W)
-                        VOL(J,I+1,W) = VRESER(J,W,I)
-                        ENERGYPRO(J,I,W) = 0.9 * 9.81 * FLOWOUT(J,I,W)
-                        ENERGYPRO(J,I,W) = ENERGYPRO(J,I,W) *(REALHEAD(J,W))/1000
-                        HTK(J,I,W) = REALHEAD(J,W)
-                        HHO(J,I,W)= HRESERMAX(J,W)
-                        HHO(J,I+1,W)= HRESERMAX(J,W)
-                    END IF
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
-c     STEP 6: Propagate water to the downstream reservoir, considering the time lag
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                    
- 125                IF (CURRENTYEAR<OPEYEAR(J,W)) THEN
-                        FLOWIN(J,I,W) = RESFLOWS(J,II,W)
-                        FLOWOUT(J,I,W) = FLOWIN(J,I,W)
-                        VOL(J,I,W) =0
-                        ENERGYPRO(J,I,W) = 0
-                        HTK(J,I,W) = 0
-                        HHO(J,I,W) = 0
-                        VRESER(J,W,I) = 0 
-                        REALHEAD(J,W) = 0
-                        QRESER(J,W) = 0
-                        FLOWOUT_TURB(J,I,W)=0.0        
-                    END IF
-                    
-                    ! Reading UH_R files for reservoirs
-                    RESID=RES_DIRECT(J,1,W)
-                    DS_RESID=RES_DIRECT(J,2,W)
-                    WRITE(RESID_STR,10) RESID
-                    WRITE(DS_RESID_STR,10) DS_RESID
-                    ! check if the downstream reservoir is part of the current sub basin (not downstream of the outlet station)
-                    RES_IN_BASIN = .FALSE.
-                    DO K= 1, NORESERVOIRS(W)
-                        IF (RES_DIRECT(K,1,W) == DS_RESID) THEN
-                            RES_IN_BASIN = .TRUE.
-                            EXIT
-                        END IF
-                    END DO
-
+                                            
+                 END DO     !!! END OF J LOOP OVER RESERVOIRS of STATION [W] 
+             
+                 IF (RESFLOWS(NORESERVOIRS(W),II,W) .LT. 0) THEN
+                     RESFLOWS(NORESERVOIRS(W),II,W) = 0
+                 END IF
+                 ! Update Flow array (naturalized flow) to include regulated flow from reservoirs
+                 FLOW(II,W) = RESFLOWS(NORESERVOIRS(W),II,W)   ! change I(step) to II(simulated_day) 
+                 
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
+ c     STEP 7: Save Reservoir States/Fluxes for STEPBYSTEP Version
+ c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ 
+                 
+                 
+                 IF (STEPBYSTEP) THEN
+                     write(W_STR,10) W ! convert integer to string to be able to concatenate in filename with strings
+                     write(NDAY_SIM_STR,10) (NDAY_SIM)
+                     write(NDAY_SIM_STR_NEXT,10) (NDAY_SIM+1)
+                     write(NDAY_SIM_STR_PREV,10) (NDAY_SIM-1)
+ c                   !SAVE RESFLOWS TO READ THEM LATER for StepByStep Version 
+                     RESFLOWSTRING_SIM = trim(trim('NF'//trim(ADJUSTL(W_STR)))//'_STEP'//trim(adjustl(NDAY_SIM_STR_NEXT))//'.txt')
+                     open(73, file = NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING_SIM)
+                     DO N = 1,NORESERVOIRS(W)
+                         WRITE(73, *) (RESFLOWS(N,K,W), K = 1,NDAY)
+                     END DO
+                     close(73)
+ 
+                        !SAVE OUTFLOWS TO READ THEM LATER for StepByStep Version 
+                     OUTFLOWSTRING_SIM = trim(trim('OUTFLOW'//trim(ADJUSTL(W_STR)))//'_STEP'//trim(adjustl(NDAY_SIM_STR_NEXT))//'.txt')
+                     open(74, file = NF_PATH(1:NF_CLEN)//'/stepbystep/'//OUTFLOWSTRING_SIM)
+                     DO N = 1,NORESERVOIRS(W)
+                         WRITE(74, *) (FLOWOUT(N,K,W), K = 1,NDAY)
+                     END DO
+                     close(74)
+ 
                    
-
-                    IF (DS_RESID>0 .AND. RES_IN_BASIN) THEN
-                        UH_NAME = 'RES'//trim(adjustl(RESID_STR))//"_"//'RES'//trim(adjustl(DS_RESID_STR))
-                        OPEN(22,file = UH_PATH(1:UH_CLEN)//trim(ADJUSTL(UH_NAME))//'.uh_r', status='old')
-                        READ(22, *) (UH_RR(1,K), K = 1,KE+UH_DAY-1)  
-                        CLOSE(22)
-                    ELSE
-                        UH_NAME = 'RES'//trim(adjustl(RESID_STR))//"_"//trim(adjustl(NAME5(W)))  
-                        OPEN(22,file = UH_PATH(1:UH_CLEN)//trim(ADJUSTL(UH_NAME))//'.uh_r', status='old')
-                        READ(22, *) (UH_RR(1,K), K = 1,KE+UH_DAY-1)  
-                        CLOSE(22)
-                    END IF        
-                    
-                    ! Find the index of the downstream reservoir --> RESORD(W)
-                    IF (DS_RESID > 0 .AND. RES_IN_BASIN) THEN
-                        DO K = 1, NORESERVOIRS(W)
-                            IF (RES_DIRECT(K,1,W) == DS_RESID) THEN
-                                RESORD(W) = K
-                                EXIT
-                            END IF
-                        END DO
-                    ELSE
-                        RESORD(W) = NORESERVOIRS(W)  ! Route to station
-                    END IF
-                    ! Added by HD-May25 to account for UH between reservoirs
-                    ! RESFLOWS(NORESERVOIRS(W),II,W) is the reservoir at the downstream reservoir.
-                    ! Update the flow for the downstream reservoir for the next time step (so the new upstream flow can be accounted for in the next step; this is because the J loop is happening here from downstream to upstream)
-                    DO KK = 1,KE+UH_DAY-1
-                        IF ((II-KK+1) .GE. 1) THEN 
-                            RESFLOWS(RESORD(W), II+1, W) = RESFLOWS(RESORD(W), II+1, W) + UH_RR(1, KK) * FLOWOUT(J, I-KK+1, W)
-                        END IF
-                    END DO
-
-                    ! Option to consider uniform UH with direct flow of runoff using the Travel Time
-                    !IF (RES_DIRECT(J,2,W) .EQ. 0) THEN  ! No downstream reservoirs
-                       ! RESFLOWS(NORESERVOIRS(W),II+1+INT(TRVLTIME(J,W)),W)= RESFLOWS(NORESERVOIRS(W),II+1+INT(TRVLTIME(J,W)),W) + FLOWOUT(J,I,W)     
-                    !ELSE
-                        !RESFLOWS(RESORD(W),II+1+INT(TRVLTIME(J,W)),W) =RESFLOWS(RESORD(W),II+1+INT(TRVLTIME(J,W)),W) + FLOWOUT(J,I,W)
-                    !END IF          
-                END DO     !!! END OF J LOOP OVER RESERVOIRS of STATION [W] 
-            
-                IF (RESFLOWS(NORESERVOIRS(W),II,W) .LT. 0) THEN
-                    RESFLOWS(NORESERVOIRS(W),II,W) = 0
-                END IF
-                ! Update Flow array (naturalized flow) to include regulated flow from reservoirs
-                FLOW(II,W) = RESFLOWS(NORESERVOIRS(W),II,W)   ! change I(step) to II(simulated_day) 
-                
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            
-c     STEP 7: Save Reservoir States/Fluxes for STEPBYSTEP Version
-c xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                IF (STEPBYSTEP) THEN
-                    write(W_STR,10) W ! convert integer to string to be able to concatenate in filename with strings
-                    write(NDAY_SIM_STR,10) (NDAY_SIM)
-                    write(NDAY_SIM_STR_NEXT,10) (NDAY_SIM+1)
-                    write(NDAY_SIM_STR_PREV,10) (NDAY_SIM-1)
-c                   !SAVE RESFLOWS TO READ THEM LATER for StepByStep Version 
-                    RESFLOWSTRING_SIM = trim(trim('NF'//trim(ADJUSTL(W_STR)))//'_STEP'//trim(adjustl(NDAY_SIM_STR_NEXT))//'.txt')
-                    open(73, file = NF_PATH(1:NF_CLEN)//'/stepbystep/'//RESFLOWSTRING_SIM)
-                    DO N = 1,NORESERVOIRS(W)
-                        WRITE(73, *) (RESFLOWS(N,K,W), K = 1,NDAY)
-                    END DO
-                    close(73)
-
-                    ! DELETE PREVIOUS NATURALIZED FLOW FILE [only keep the first step for future simulations]
-                    IF (NDAY_SIM > 2) then
-                        previous_natflow_filename = trim(trim('NF'//trim(ADJUSTL(W_STR)))//'_STEP'//trim(adjustl(NDAY_SIM_STR_PREV))//'.txt')
-                        inquire(file=NF_PATH(1:NF_CLEN)//'/stepbystep/'//previous_natflow_filename, exist=file_exists)
-                        IF (file_exists) then
-                            open(74, file=NF_PATH(1:NF_CLEN)//'/stepbystep/'//previous_natflow_filename, status='old')
-                            close(74, status='delete')
-                        end IF
-                    END IF
-
-                    !SAVE Storage TO READ THEM LATER for StepByStep Version
-                    IF (NDAY_SIM .EQ. 1)  THEN   ! Save for the first timestep so it can be used in case of iteartions of conevrgence
-                        storage_filename='RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt'     ! needed for convergence iterations
-                        open(88, file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//storage_filename)
-                        DO J = 1, NORESERVOIRS(W)
-                            WRITE(88, *) (VOL(J,I,W))
-                        END DO
-                        close(88)
-                        storage_filename='RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR_NEXT))//'.txt'     ! needed for next time step
-                        open(87, file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//storage_filename)
-                        DO J = 1, NORESERVOIRS(W)
-                            WRITE(87, *) (VOL(J,I+1,W))
-                        END DO
-                        close(87)
-                    ELSE
-                        storage_filename='RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR_NEXT))//'.txt'     ! needed for next time step
-                        open(87, file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//storage_filename)
-                        DO J = 1, NORESERVOIRS(W)
-                            WRITE(87, *) (VOL(J,I+1,W))
-                        END DO
-                        close(87)
-                    ENDIF
-                    ! DELETE PREVIOUS STORAGE FILE
-                    IF (NDAY_SIM > 1) then
-                        previous_storage_filename = 'RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR_PREV))//'.txt'
-                        inquire(file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//previous_storage_filename, exist=file_exists)
-                        IF (file_exists) then
-                            open(89, file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//previous_storage_filename, status='old')
-                            close(89, status='delete')
-                        END IF
-                    END IF
-                END IF
-            ENDDO       !!! END OF W LOOP OVER STATIONS               
-        ! At the end of this loop, we will have the discharge for each station under consideration at time i, in FLOW(I,:)
-        ENDDO    !!! END OF I LOOP OVER STEPS (STEPS=1 For SBS Version) or (STEPS=NDAY For All Steps)
-        RETURN
- 9001   WRITE(*,*) 'Error reading UH data'
- 9002   WRITE(*,*) 'Error in reading reservoir data'
- 9003   WRITE(*,*) 'Error in reading irrigation data'
- 9004   WRITE(0,*) 'ERROR in Reading Storage Volume for Current Time Step; Please Check if Previous Time Step is Simulated'     
-        END
-C************************************************************************************************************************************************************************************
-C       Convert from day to month
-C************************************************************************************************************************************************************************************
-        INTEGER FUNCTION CAL_MONTH(CRTDATE)
-        INTEGER CRTDATE
-        IF (CRTDATE .LE. 31) THEN !jan
-            CAL_MONTH = 1
-        ELSE IF (CRTDATE .LE. 59) THEN ! feb
-            CAL_MONTH = 2
-        ELSE IF (CRTDATE .LE. 90) THEN ! mar
-            CAL_MONTH = 3
-        ELSE IF (CRTDATE .LE. 120) THEN ! apr
-            CAL_MONTH = 4
-        ELSE IF (CRTDATE .LE. 151) THEN ! may
-            CAL_MONTH = 5
-        ELSE IF (CRTDATE .LE. 181) THEN ! jun
-            CAL_MONTH = 6
-        ELSE IF (CRTDATE .LE. 212) THEN ! jul
-            CAL_MONTH = 7
-        ELSE IF (CRTDATE .LE. 243) THEN ! aug
-            CAL_MONTH = 8
-        ELSE IF (CRTDATE .LE. 273) THEN ! sep
-            CAL_MONTH = 9
-        ELSE IF (CRTDATE .LE. 304) THEN ! oct
-            CAL_MONTH = 10
-        ELSE IF (CRTDATE .LE. 334) THEN ! nov
-            CAL_MONTH = 11
-        ELSE ! dec
-            CAL_MONTH = 12
-        END IF
-        RETURN
-        END
+ 
+                     ! DELETE PREVIOUS NATURALIZED FLOW FILE [only keep the first step for future simulations]
+                     IF (NDAY_SIM > 2) then
+                         previous_natflow_filename = trim(trim('NF'//trim(ADJUSTL(W_STR)))//'_STEP'//trim(adjustl(NDAY_SIM_STR_PREV))//'.txt')
+                         inquire(file=NF_PATH(1:NF_CLEN)//'/stepbystep/'//previous_natflow_filename, exist=file_exists)
+                         IF (file_exists) then
+                             open(79, file=NF_PATH(1:NF_CLEN)//'/stepbystep/'//previous_natflow_filename, status='old')
+                             close(79, status='delete')
+                         end IF
+ 
+                         previous_outflow_filename = trim(trim('OUTFLOW'//trim(ADJUSTL(W_STR)))//'_STEP'//trim(adjustl(NDAY_SIM_STR_PREV))//'.txt')
+                         inquire(file=NF_PATH(1:NF_CLEN)//'/stepbystep/'//previous_outflow_filename, exist=file_exists)
+                         IF (file_exists) then
+                             open(76, file=NF_PATH(1:NF_CLEN)//'/stepbystep/'//previous_outflow_filename, status='old')
+                             close(76, status='delete')
+                         end IF
+ 
+                     END IF
+ 
+                     !SAVE Storage TO READ THEM LATER for StepByStep Version
+                     IF (NDAY_SIM .EQ. 1)  THEN   ! Save for the first timestep so it can be used in case of iteartions of conevrgence
+                         storage_filename='RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR))//'.txt'     ! needed for convergence iterations
+                         open(88, file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//storage_filename)
+                         DO J = 1, NORESERVOIRS(W)
+                             WRITE(88, *) (VOL(J,I,W))
+                         END DO
+                         close(88)
+ 
+                         storage_filename='RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR_NEXT))//'.txt'     ! needed for next time step
+                         open(87, file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//storage_filename)
+                         DO J = 1, NORESERVOIRS(W)
+                             WRITE(87, *) (VOL(J,I+1,W))
+                         END DO
+                         close(87)
+ 
+                       
+                     ELSE
+                         storage_filename='RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR_NEXT))//'.txt'     ! needed for next time step
+                         open(87, file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//storage_filename)
+                         DO J = 1, NORESERVOIRS(W)
+                             WRITE(87, *) (VOL(J,I+1,W))
+                         END DO
+                         close(87)
+                     ENDIF
+                     ! DELETE PREVIOUS STORAGE FILE
+                     IF (NDAY_SIM > 1) then
+                         previous_storage_filename = 'RESERVOIR_VOL_STATION'//trim(adjustl(W_STR))//'_STEP'//trim(adjustl(NDAY_SIM_STR_PREV))//'.txt'
+                         inquire(file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//previous_storage_filename, exist=file_exists)
+                         IF (file_exists) then
+                             open(89, file=OUTPATH(1:OUT_CLEN)//'/stepbystep/'//previous_storage_filename, status='old')
+                             close(89, status='delete')
+                         END IF
+                     END IF
+                 END IF
+             ENDDO       !!! END OF W LOOP OVER STATIONS               
+         ! At the end of this loop, we will have the discharge for each station under consideration at time i, in FLOW(I,:)
+         ENDDO    !!! END OF I LOOP OVER STEPS (STEPS=1 For SBS Version) or (STEPS=NDAY For All Steps)
+         RETURN
+  9001   WRITE(*,*) 'Error reading UH data'
+  9002   WRITE(*,*) 'Error in reading reservoir data'
+  9003   WRITE(*,*) 'Error in reading irrigation data'
+  9004   WRITE(0,*) 'ERROR in Reading Storage Volume for Current Time Step; Please Check if Previous Time Step is Simulated'     
+         END
+ C************************************************************************************************************************************************************************************
+ C       Convert from day to month
+ C************************************************************************************************************************************************************************************
+         INTEGER FUNCTION CAL_MONTH(CRTDATE)
+         INTEGER CRTDATE
+         IF (CRTDATE .LE. 31) THEN !jan
+             CAL_MONTH = 1
+         ELSE IF (CRTDATE .LE. 59) THEN ! feb
+             CAL_MONTH = 2
+         ELSE IF (CRTDATE .LE. 90) THEN ! mar
+             CAL_MONTH = 3
+         ELSE IF (CRTDATE .LE. 120) THEN ! apr
+             CAL_MONTH = 4
+         ELSE IF (CRTDATE .LE. 151) THEN ! may
+             CAL_MONTH = 5
+         ELSE IF (CRTDATE .LE. 181) THEN ! jun
+             CAL_MONTH = 6
+         ELSE IF (CRTDATE .LE. 212) THEN ! jul
+             CAL_MONTH = 7
+         ELSE IF (CRTDATE .LE. 243) THEN ! aug
+             CAL_MONTH = 8
+         ELSE IF (CRTDATE .LE. 273) THEN ! sep
+             CAL_MONTH = 9
+         ELSE IF (CRTDATE .LE. 304) THEN ! oct
+             CAL_MONTH = 10
+         ELSE IF (CRTDATE .LE. 334) THEN ! nov
+             CAL_MONTH = 11
+         ELSE ! dec
+             CAL_MONTH = 12
+         END IF
+         RETURN
+         END
+ 
